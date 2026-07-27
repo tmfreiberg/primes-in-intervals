@@ -7,3 +7,10 @@ img.figure-img,
   max-width: 100%;
   height: auto;
 }
+
+/* Quarto emits theorem titles as "Proposition 4.1" with no terminal period,
+   unlike proofs and remarks, which already carry one. Put the period inside
+   the <strong> so that it is bold along with the name and number. */
+.theorem-title strong::after {
+  content: ".";
+}

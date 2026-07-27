@@ -14,5 +14,11 @@ __pycache__/
 site_libs/
 **/*.quarto_ipynb
 
-# Generated media (the book draws these live; keep only images/static/)
+# Quarto scratch output from rendering a single file rather than the book
+book/*.html
+book/*_files/
+/index.html
+/index_files/
+
+# Generated media (the book draws these live; keep only the seven in images/)
 *.mp4

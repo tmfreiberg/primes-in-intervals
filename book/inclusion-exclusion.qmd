@@ -1,0 +1,372 @@
+# Inclusion-exclusion {#sec-inclusion-exclusion}
+
+Let $N \ge 1$, $H \ge 1$, and $m \ge 0$ be integers. We seek conditional estimates for the number of length-$H$ intervals $(a, a + H]$, $1 \le a \le N$, that contain exactly $m$ primes:
+
+$$
+\#\{1 \le a \le N : \pi(a + H) - \pi(a) = m\}.
+$$ {#eq-intervals-with-exactly-m-primes}
+
+Hardy and Littlewood conjectured an estimate for
+
+$$
+\sum_{a = 1}^{N} \boldsymbol{1}_{\mathcal{P}}(a + h_1)\cdots \boldsymbol{1}_{\mathcal{P}}(a + h_k)
+$$ {#eq-prime-k-tuples}
+
+when integers $h_1,\ldots,h_k$ are such that the summand is not trivially nil for all but finitely many $a$. We can use such estimates if we can express (@eq-intervals-with-exactly-m-primes) in terms of (@eq-prime-k-tuples).
+
+Given $a$ and $k \ge 0$, consider
+
+$$
+\sum_{\substack{\mathcal{H} \, \subseteq \, [H] \\ \#\mathcal{H} = \, k}} \, \prod_{h \in \mathcal{H}} \boldsymbol{1}_{\mathcal{P}}(a + h).
+$$ {#eq-sum-prime-k-tuples}
+
+If $\pi(a + H) - \pi(a) = n$, then the interval $(a, a + H]$ is counted $\binom{n}{k}$ times by (@eq-sum-prime-k-tuples), for if the primes in $(a, a + H]$ are precisely $a + h_1,\ldots,a + h_n$, then
+
+$$
+\prod_{h \in \mathcal{H}} \boldsymbol{1}_{\mathcal{P}}(a + h) = 1
+$$
+
+if and only if $\mathcal{H} \subseteq \{h_1,\ldots,h_n\}$; otherwise, the product is equal to $0$. This argument includes the case $n < k$, when $\binom{n}{k} = 0$. Consequently,
+
+$$
+\begin{aligned}
+\sum_{\substack{\mathcal{H} \subseteq \, [H] \\ \#\mathcal{H} = \, k}} \,
+\sum_{a = 1}^{N} \,  \prod_{h \in \mathcal{H}} \boldsymbol{1}_{\mathcal{P}}(a + h)
+& =
+\sum_{a = 1}^{N} \,\sum_{\substack{\mathcal{H} \subseteq \, [H] \\ \#\mathcal{H} = \, k}} \, \prod_{h \in \mathcal{H}} \boldsymbol{1}_{\mathcal{P}}(a + h)
+\\
+& =
+\sum_{n = 0}^{H} \binom{n}{k} \,
+\#\{1 \le a \le N : \pi(a + H) - \pi(a) = n\}.
+\end{aligned}
+$$ {#eq-count-with-binomial-multiplicity}
+
+In the edge case $k = 0$, both sides of (@eq-count-with-binomial-multiplicity) are equal to $N$, for the empty product is equal to $1$, $\binom{n}{0} = 1$, and $\pi(a + H) - \pi(a)$ necessarily lies in $\{0,\ldots,H\}$. Similarly, when $k = H$, both sides count the number of $a$, $1 \le a \le N$, such that $a + 1,\ldots,a + H$ are all prime (which, for $H \ge 2$, is impossible unless $H = 2$ and $a = 1$).
+
+Equation (@eq-count-with-binomial-multiplicity) isn't quite what we want, which is to isolate the term with $n = m$ in the last sum.
+
+Before we continue, let us note that the range for $a$ is immaterial to the above argument, and we may wish to consider different scenarios, for instance $N < a \le 2N$. Thus, we fix an arbitrary finite set of integers $\mathcal{A}$, and let
+
+$$
+S_k
+:=
+\sum_{\substack{\mathcal{H} \subseteq \, [H] \\ \#\mathcal{H} = \, k}} \,
+\sum_{a \, \in \mathcal{A}} \,  \prod_{h \in \mathcal{H}} \boldsymbol{1}_{\mathcal{P}}(a + h)
+\quad \text{and} \quad
+A_n
+:=
+\#\{a \in \mathcal{A} : \pi(a + H) - \pi(a) = n\}.
+$$ {#eq-convenient-notation}
+
+With this notation, the argument that yields (@eq-count-with-binomial-multiplicity) generalizes to
+
+$$
+S_k
+=
+\sum_{n = 0}^{H} \binom{n}{k} A_n,
+$$ {#eq-count-with-binomial-multiplicity-general}
+
+and this is valid for all $k \ge 0$.
+
+Putting $k = m$ in (@eq-count-with-binomial-multiplicity-general) yields
+
+$$
+\begin{aligned}
+S_m & = A_m + \binom{m + 1}{m} A_{m + 1} + \sum_{n = m + 2}^{H} \binom{n}{m} A_{n} \\
+& \ge A_m.
+\end{aligned}
+$$
+
+Subtracting $\binom{m + 1}{m}S_{m + 1}$ from both sides will cancel the term $\binom{m + 1}{m}A_{m + 1}$. However,
+
+$$
+\begin{aligned}
+S_m - \binom{m + 1}{m}S_{m + 1}
+& =
+A_m + \sum_{n = m + 1}^{H} \left[\binom{n}{m} - \binom{m + 1}{m}\binom{n}{m + 1}\right] A_{n}
+\\
+& =
+A_m - \binom{m + 2}{m}A_{m + 2} - \sum_{n = m + 3}^{H} \binom{n}{m}\left[n - m - 1\right] A_{n}
+\\
+& \le
+A_m.
+\end{aligned}
+$$
+
+We have over-corrected, going from an overcount to an undercount. We may adjust again:
+
+$$
+S_m - \binom{m + 1}{m}S_{m + 1} + \binom{m + 2}{m}S_{m + 2}
+=
+A_m + \binom{m + 3}{m}A_{m + 3} + \cdots,
+$$
+
+another overcount---see the proof of @prp-inclusion-exclusion for details. This process terminates with
+
+$$
+A_{m} = \sum_{\ell = 0}^{H - m} (-1)^{\ell} \binom{m + \ell}{m} S_{m + \ell}.
+$$ {#eq-inversion-of-count-with-binomial-multiplicity-general}
+
+::: {#lem-binomial-identities}
+
+Let $\ell, m, n, L \ge 0$ be integers.
+
+\(a\) We have
+
+$$
+\binom{m + \ell}{m}\binom{n}{m + \ell} = \binom{n}{m}\binom{n - m}{\ell}.
+$$ {#eq-subset-of-a-subset}
+
+\(b\) We have
+
+$$
+\sum_{\ell = 0}^{L}
+(-1)^{\ell}\binom{m + \ell}{m}\binom{n}{m + \ell}
+=
+(-1)^{L}\binom{n}{m}\binom{n - m - 1}{L}.
+$$ {#eq-alternating-partial-sum}
+
+:::
+
+::: {.proof}
+
+\(a\) Suppose first that $n \ge m + \ell$. Then left- and right-hand sides are both the number of ordered pairs $(I,J)$ of sets $I \subseteq J \subseteq \{1,\ldots,n\}$ with $\#I = m$ and $\#J = m + \ell$. The left-hand side counts the number of $J \subseteq \{1,\ldots,n\}$ of size $m + \ell$ first, and then the number of $I \subseteq J$ of size $m$; the right-hand side counts the number of $I \subseteq \{1,\ldots,n\}$ of size $m$ first, and then the number of ways of choosing the remaining $\ell$ elements of $J$ from among the $n - m$ elements of $\{1,\ldots,n\} \setminus I$.
+
+If $n < m + \ell$, then both sides of (@eq-subset-of-a-subset) are equal to zero: on the left because $\binom{n}{m + \ell} = 0$, and on the right because $\binom{n}{m} = 0$ if $n < m$, while $\binom{n - m}{\ell} = 0$ if $m \le n < m + \ell$.
+
+\(b\) By \(a\),
+
+$$
+\sum_{\ell = 0}^{L}
+(-1)^{\ell}\binom{m + \ell}{m}\binom{n}{m + \ell}
+=
+\binom{n}{m}
+\sum_{\ell = 0}^{L}
+(-1)^{\ell}\binom{n - m}{\ell},
+$$ {#eq-alternating-partial-sum-reduced}
+
+so it suffices to show that, for every integer $M$ and every integer $L \ge 0$,
+
+$$
+\sum_{\ell = 0}^{L}
+(-1)^{\ell}\binom{M}{\ell}
+=
+(-1)^L\binom{M - 1}{L}.
+$$ {#eq-alternating-row-sum}
+
+We argue by induction on $L$. If $L = 0$, then both sides of (@eq-alternating-row-sum) are equal to $1$, the right-hand side because $\binom{M - 1}{0} = 1$ for every $M$.
+
+Suppose (@eq-alternating-row-sum) holds for some $L \ge 0$. Then
+
+$$
+\begin{aligned}
+\sum_{\ell = 0}^{L + 1}
+(-1)^{\ell}\binom{M}{\ell}
+& =
+(-1)^L\binom{M - 1}{L}
++
+(-1)^{L + 1}\binom{M}{L + 1}
+\\
+& =
+(-1)^{L + 1}\left[\binom{M}{L + 1} - \binom{M - 1}{L}\right]
+\\
+& =
+(-1)^{L + 1}\binom{M - 1}{L + 1},
+\end{aligned}
+$$
+
+the last step by the addition formula $\binom{M}{L + 1} = \binom{M - 1}{L} + \binom{M - 1}{L + 1}$, which holds for every integer $M$ and every integer $L \ge 0$. The result follows by induction.
+
+:::
+
+::: {#prp-inclusion-exclusion}
+
+Let $\mathcal{A}$ be a finite set of integers, and let $H \ge 1$ be an integer. Given integers $k, n \ge 0$, let
+
+$$
+S_k
+:=
+\sum_{\substack{\mathcal{H} \subseteq \, [H] \\ \#\mathcal{H} = \, k}} \,
+\sum_{a \, \in \mathcal{A}} \,  \prod_{h \in \mathcal{H}} \boldsymbol{1}_{\mathcal{P}}(a + h)
+\quad \text{and} \quad
+A_n
+:=
+\#\{a \in \mathcal{A} : \pi(a + H) - \pi(a) = n\}.
+$$ {#eq-convenient-notation-2}
+
+\(a\) For all $k \ge 0$,
+
+$$
+S_k
+=
+\sum_{n = 0}^{H} \binom{n}{k} A_n.
+$$ {#eq-count-with-binomial-multiplicity-general-2}
+
+\(b\) Let $m \ge 0$ and $L \ge 0$ be integers. Then
+
+$$
+\sum_{\ell = 0}^{L} (-1)^{\ell} \binom{m + \ell}{m} S_{m + \ell}
+=
+A_m
++
+(-1)^{L} \sum_{n = m + L + 1}^{H}
+\binom{n}{m}\binom{n - m - 1}{L} A_n,
+$$ {#eq-truncated-inclusion-exclusion-identity}
+
+and every summand of the sum over $n$ is nonnegative.
+
+\(c\) Consequently, for all even integers $L \ge 0$,
+
+$$
+\sum_{\ell = 0}^{L + 1} (-1)^{\ell} \binom{m + \ell}{m} S_{m + \ell}
+\le
+A_{m}
+\le
+\sum_{\ell = 0}^{L} (-1)^{\ell} \binom{m + \ell}{m} S_{m + \ell}.
+$$ {#eq-inversion-of-count-with-binomial-multiplicity-general-2}
+
+:::
+
+::: {.proof}
+
+\(a\) Let $a \in \mathcal{A}$, and suppose that $\pi(a + H) - \pi(a) = n$, so that the primes in $(a, a + H]$ are precisely $a + h_1, \ldots, a + h_n$ for some $h_1, \ldots, h_n \in [H]$. For $\mathcal{H} \subseteq [H]$ we have
+
+$$
+\prod_{h \in \mathcal{H}} \boldsymbol{1}_{\mathcal{P}}(a + h) = 1
+$$
+
+if and only if $\mathcal{H} \subseteq \{h_1,\ldots,h_n\}$, and otherwise the product is equal to $0$. Hence, for each $k \ge 0$,
+
+$$
+\sum_{\substack{\mathcal{H} \subseteq \, [H] \\ \#\mathcal{H} = \, k}} \,
+\prod_{h \in \mathcal{H}} \boldsymbol{1}_{\mathcal{P}}(a + h)
+=
+\#\{\mathcal{H} \subseteq \{h_1,\ldots,h_n\} : \#\mathcal{H} = k\}
+=
+\binom{n}{k},
+$$
+
+this last being valid also when $n < k$, both sides then being equal to zero. Summing over $a \in \mathcal{A}$ and grouping the $a$ according to the value of $n = \pi(a + H) - \pi(a)$, which lies in $\{0, 1, \ldots, H\}$ because $(a, a + H]$ contains exactly $H$ integers, yields (@eq-count-with-binomial-multiplicity-general-2).
+
+\(b\) By (@eq-count-with-binomial-multiplicity-general-2),
+
+$$
+\sum_{\ell = 0}^{L}(-1)^{\ell}\binom{m + \ell}{m}S_{m + \ell}
+=
+\sum_{\ell = 0}^{L}(-1)^{\ell}\binom{m + \ell}{m} \,
+\sum_{n = 0}^{H} \binom{n}{m + \ell} A_n .
+$$
+
+Both sums are finite, and the range of the inner sum does not depend on $\ell$, so we may interchange the order of summation to obtain
+
+$$
+\begin{aligned}
+\sum_{\ell = 0}^{L}(-1)^{\ell}\binom{m + \ell}{m}S_{m + \ell}
+& =
+\sum_{n = 0}^{H} A_n \,
+\sum_{\ell = 0}^{L}(-1)^{\ell}\binom{m + \ell}{m}\binom{n}{m + \ell}
+\\
+& =
+(-1)^{L}\sum_{n = 0}^{H} \binom{n}{m}\binom{n - m - 1}{L} A_n,
+\end{aligned}
+$$
+
+the last equality by part \(b\) of @lem-binomial-identities.
+
+It remains to examine the coefficient of $A_n$ in this last sum. If $n < m$, it is equal to zero, because $\binom{n}{m} = 0$. If $n = m$, then $\binom{n}{m} = 1$ and $\binom{n - m - 1}{L} = \binom{-1}{L} = (-1)^L$, so the coefficient is equal to $(-1)^L (-1)^L = 1$. If $n > m$, then $n - m - 1 \ge 0$ and $\binom{n - m - 1}{L} = 0$ unless $L \le n - m - 1$, that is, unless $n \ge m + L + 1$. This gives (@eq-truncated-inclusion-exclusion-identity), and each summand of the sum over $n$ is nonnegative because $A_n \ge 0$ and binomial coefficients with nonnegative parameters are nonnegative.
+
+\(c\) Apply (@eq-truncated-inclusion-exclusion-identity) with $L$ even, and then with $L + 1$ in place of $L$.
+
+:::
+
+::: {#rem-inclusion-exclusion}
+
+As far as @prp-inclusion-exclusion is concerned, there is nothing special about the set of primes $\mathcal{P}$. The proof goes through with any set of integers $\mathcal{B}$ in place of $\mathcal{P}$, on replacing $\boldsymbol{1}_{\mathcal{P}}$ by $\boldsymbol{1}_{\mathcal{B}}$ in the definition of $S_k$ and setting
+
+$$
+A_n := \#\{a \in \mathcal{A} : \# \left( \mathcal{B} \cap (a, a + H] \right) = n\}.
+$$
+
+Indeed, the only property of $\boldsymbol{1}_{\mathcal{P}}$ that is used is that it takes values in $\{0,1\}$, and the only reason the sum over $n$ terminates is that $(a, a + H]$ contains exactly $H$ integers, so that $\#\left((a, a + H] \cap \mathcal{B}\right) \le H$ for every $a$. The arithmetic of the primes enters only later, when the $S_k$ are estimated.
+
+:::
+
+::: {.proof name="Second proof of @prp-inclusion-exclusion(b)"}
+
+For $a \in \mathcal{A}$, let $\mathcal{P}_a = \{h \in [H] : a + h \in \mathcal{P}\}$, so that
+
+$$
+\#\mathcal{P}_a = \pi(a + H) - \pi(a)
+$$
+
+and
+
+$$
+A_n = \#\{a \in \mathcal{A} : \#\mathcal{P}_a = n\}.
+$$
+
+Let $\mathcal{T}$ be the set of triples $(a, I, J)$ in which $a \in \mathcal{A}$ and $I \subseteq J \subseteq \mathcal{P}_a$ are sets with $\#I = m$ and $\#J - \#I \le L$, and assign to each such triple the weight $(-1)^{\#J - \#I}$.
+
+First we compute the total weight of $\mathcal{T}$ by grouping the triples according to $\#J$. For fixed $a$ and fixed $\ell \ge 0$, choosing $J$ before $I$ shows that the number of pairs $(I,J)$ with $I \subseteq J \subseteq \mathcal{P}_a$, $\#I = m$ and $\#J = m + \ell$ is $\binom{\#\mathcal{P}_a}{m + \ell}\binom{m + \ell}{m}$. Summing over $a \in \mathcal{A}$, and recalling that $S_{k} = \sum_{a \, \in \mathcal{A}}\binom{\#\mathcal{P}_a}{k}$, the total weight of $\mathcal{T}$ is
+
+$$
+\sum_{\ell = 0}^{L}(-1)^{\ell}\binom{m + \ell}{m}S_{m + \ell}.
+$$ {#eq-total-weight-of-triples}
+
+Now we compute the same total weight by cancellation. Call a triple $(a,I,J) \in \mathcal{T}$ _matched_ if $\mathcal{P}_a \setminus I$ is nonempty and, writing $x = x(a,I)$ for its least element, the triple $(a, I, J \bigtriangleup \{x\})$ again lies in $\mathcal{T}$; here $\bigtriangleup$ denotes symmetric difference. As $x \notin I$, we have $I \subseteq J \bigtriangleup \{x\} \subseteq \mathcal{P}_a$, so the only condition that can fail is $\#(J \bigtriangleup \{x\}) - \#I \le L$, and it fails precisely when $x \notin J$ and $\#J - \#I = L$.
+
+The map $(a,I,J) \mapsto (a, I, J \bigtriangleup \{x\})$ is an involution of the set of matched triples, and it reverses weight, since $\#J$ changes by exactly $1$ while $\#I$ and $x = x(a,I)$ are unchanged. The matched triples therefore contribute nothing to the total weight, which is thus the total weight of the unmatched triples.
+
+A triple is unmatched in exactly two circumstances.
+
+The first is that $\mathcal{P}_a \setminus I$ is empty, which forces $I = \mathcal{P}_a$, hence $\#\mathcal{P}_a = m$ and $J = I$. Such a triple has weight $1$, and there is exactly one for each $a$ with $\#\mathcal{P}_a = m$, so these contribute $A_m$ in total.
+
+The second is that $\mathcal{P}_a \setminus I$ is nonempty, $\#J - \#I = L$, and $x(a,I) \notin J$. Such a triple has weight $(-1)^L$. To count them, suppose $\#\mathcal{P}_a = n > m$; there are $\binom{n}{m}$ choices of $I$, and then $J \setminus I$ must be an $L$-element subset of $(\mathcal{P}_a \setminus I) \setminus \{x(a,I)\}$, a set of $n - m - 1$ elements, so there are $\binom{n - m - 1}{L}$ choices of $J$.
+
+Hence the total weight of the unmatched triples is
+
+$$
+A_m + (-1)^{L}\sum_{n = m + 1}^{H}\binom{n}{m}\binom{n - m - 1}{L}A_n ,
+$$
+
+and every term of the sum over $n$ is a count of triples, hence nonnegative. Comparing with (@eq-total-weight-of-triples) completes the proof.
+
+:::
+
+::: {#rem-mobius-inversion}
+
+Equation (@eq-inversion-of-count-with-binomial-multiplicity-general) is an instance of Möbius inversion on a partially ordered set [@rota1964; @stanley2012, §3.7]. Recall that for a finite poset $P$ the Möbius function $\mu$ is defined on pairs $x \le y$ by $\mu(x,x) = 1$ and $\sum_{x \le z \le y} \mu(x,z) = 0$ for $x < y$, and that Möbius inversion then states, in its dual form, that
+
+$$
+g(x) = \sum_{y \, \ge \, x} f(y) 
+\quad \text{for all $x$}
+\quad \iff \quad 
+f(x) = \sum_{y \, \ge \, x} \mu(x,y) g(y)
+\quad \text{for all $x$}.
+$$
+
+For the Boolean lattice of subsets of $[H]$, ordered by inclusion, one has $\mu(\mathcal{I},\mathcal{J}) = (-1)^{\#\mathcal{J} - \#\mathcal{I}}$.
+
+To recover (@eq-inversion-of-count-with-binomial-multiplicity-general), fix $a \in \mathcal{A}$ and let $\mathcal{P}_a = \{h \in [H] : a + h \in \mathcal{P}\}$ as above. Define, for $\mathcal{I} \subseteq [H]$,
+
+$$
+f_a(\mathcal{I}) 
+= 
+\begin{cases} 1 & \text{if $\mathcal{P}_a = \mathcal{I}$,} \\ 0 & \text{otherwise,}\end{cases}
+\qquad 
+g_a(\mathcal{I}) 
+= 
+\begin{cases} 1 & \text{if $\mathcal{I} \subseteq \mathcal{P}_a$,} \\ 0 & \text{otherwise,}\end{cases}
+$$
+
+so that $g_a(\mathcal{I}) = \prod_{h \in \mathcal{I}} \boldsymbol{1}_{\mathcal{P}}(a + h)$, and $g_a(\mathcal{I}) = \sum_{\mathcal{J} \supseteq \mathcal{I}} f_a(\mathcal{J})$: the sets counted "at least" are obtained from those counted "exactly". Möbius inversion gives
+
+$$
+f_a(\mathcal{I}) = \sum_{\mathcal{J} \, \supseteq \, \mathcal{I}} (-1)^{\#\mathcal{J} - \#\mathcal{I}} g_a(\mathcal{J}).
+$$
+
+Now sum over all $\mathcal{I}$ with $\#\mathcal{I} = m$ and over all $a \in \mathcal{A}$. On the left we obtain $A_m$, since for each $a$ there is exactly one $\mathcal{I}$ with $f_a(\mathcal{I}) = 1$ when $\#\mathcal{P}_a = m$, and none otherwise. On the right, each $\mathcal{J}$ arises once for each of its $\binom{\#\mathcal{J}}{m}$ subsets $\mathcal{I}$ of size $m$, so grouping the $\mathcal{J}$ according to $\#\mathcal{J} = k$ yields $\sum_{k} (-1)^{k - m}\binom{k}{m} S_{k}$.
+
+The truncated form, (@eq-truncated-inclusion-exclusion-identity), is not itself a consequence of Möbius inversion: it is a Bonferroni inequality, and depends on the additional facts that the Boolean lattice is graded and that the quantities being inverted are nonnegative.
+
+:::

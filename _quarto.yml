@@ -29,16 +29,18 @@ book:
     collapse-level: 1
   chapters:
     - index.qmd
-    - book/01-introduction.qmd
-    - book/02-generate.qmd
-    - book/03-data.qmd
-    - book/04-analyze.qmd
-    - book/05-compare.qmd
-    - book/06-display.qmd
-    - book/07-plots.qmd
-    - book/08-worked.qmd
-    - book/09-extensions.qmd
-    - book/99-references.qmd
+    - book/introduction.qmd
+    - book/notation.qmd
+    - book/inclusion-exclusion.qmd
+    - book/generate.qmd
+    - book/data.qmd
+    - book/analyze.qmd
+    - book/compare.qmd
+    - book/display.qmd
+    - book/plots.qmd
+    - book/worked.qmd
+    - book/extensions.qmd
+    - book/references.qmd
     # Chapters are added here as they are written, for example:
     #   - book/01-intervals.qmd
 

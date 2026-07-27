@@ -1,0 +1,47 @@
+# Notation {#sec-notation}
+
+- $a,h,k,\ell,m,n,p,r$ and $H,L,M,N$ denote integers, with $k,\ell,m,n,L$ typically nonnegative, $h,H,M,N$ typically positive, and $p$ typically prime.
+
+- We define the natural numbers as including $0$:
+$$
+\mathbb{N} := \{0,1,2,\ldots\}.
+$$
+
+- $\mathcal{P} := \{2,3,5,\ldots\}$ is the set of all prime numbers, and its indicator function is
+$$
+\boldsymbol{1}_{\mathcal{P}} : \mathbb{Z} \to \{0,1\}, 
+\quad 
+\boldsymbol{1}_{\mathcal{P}}(a) 
+=
+\begin{cases}
+1 & \text{if $a \in \mathcal{P}$,} \\
+0 & \text{otherwise.}
+\end{cases}
+$$
+
+- The prime counting function $\pi : \mathbb{Z} \to \mathbb{N}$ is given by 
+$$
+\pi(N) := \sum_{n \, = \, 1}^{N} \boldsymbol{1}_{\mathcal{P}}(n).
+$$
+
+- With $a$ ranging over some finite set of integers $\mathcal{A}$, we are interested in intervals $(a, a + H]$ of length $H$ that contain exactly $m$ primes:
+$$
+\{a \in \mathcal{A} : \pi(a + H) - \pi(a) = m\}.
+$$
+Since $(a, a + H]$ contains exactly $H$ integers, we always have $\pi(a + H) - \pi(a) \le H$.
+
+- $[H]$ is shorthand for the interval $\{1,\ldots,H\}$, and $\mathcal{H}$ typically denotes a subset of $[H]$. 
+
+- The cardinality of a set $S$ is denoted $\# S$.
+
+- For integers $r$ and $k$, the binomial coefficient is 
+$$
+\binom{r}{k} 
+= 
+\frac{r(r-1)\cdots(r - k + 1)}{k!} \quad (k \ge 0),
+\qquad 
+\binom{r}{k} = 0 \quad (k < 0).
+$$
+In particular $\binom{r}{k} = 0$ if $0 \le r < k$, and $\binom{-1}{k} = (-1)^k$ for $k \ge 0$.
+
+- For $g$ nonnegative, $f = O(g)$ and $f \ll g$ both mean that $|f| \le Cg$ for some constant $C$; $f \asymp g$ means $g \ll f \ll g$; $f \sim g$ means $f/g \to 1$; and $f = o(g)$ means $f/g \to 0$. Subscripts indicate parameters on which implied constants may depend.
