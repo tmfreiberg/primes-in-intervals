@@ -47,10 +47,6 @@ where = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-# The original 2023 script is kept at the repository root so the validation
-# harnesses can compare against it; it is a historical record, not part of
-# the package, so it is not linted.  (The pattern matches the file only: the
-# package is the directory src/primes_in_intervals/.)
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "D"]
@@ -62,14 +58,12 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["D100", "D101", "D102", "D103", "D104"]
-# The validation harnesses stub modules before importing (E402), transcribe
-# the original scripts verbatim (E501, F841), and are one-off tools (D1xx).
 
 [tool.ruff.lint.pydocstyle]
 convention = "numpy"
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.10"
 warn_unused_ignores = true
 no_implicit_optional = true
 check_untyped_defs = true
