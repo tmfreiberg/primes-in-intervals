@@ -335,38 +335,6 @@ and every term of the sum over $n$ is a count of triples, hence nonnegative. Com
 
 ::: {#rem-mobius-inversion}
 
-Equation (@eq-inversion-of-count-with-binomial-multiplicity-general) is an instance of Möbius inversion on a partially ordered set [@rota1964; @stanley2012, §3.7]. Recall that for a finite poset $P$ the Möbius function $\mu$ is defined on pairs $x \le y$ by $\mu(x,x) = 1$ and $\sum_{x \le z \le y} \mu(x,z) = 0$ for $x < y$, and that Möbius inversion then states, in its dual form, that
-
-$$
-g(x) = \sum_{y \, \ge \, x} f(y) 
-\quad \text{for all $x$}
-\quad \iff \quad 
-f(x) = \sum_{y \, \ge \, x} \mu(x,y) g(y)
-\quad \text{for all $x$}.
-$$
-
-For the Boolean lattice of subsets of $[H]$, ordered by inclusion, one has $\mu(\mathcal{I},\mathcal{J}) = (-1)^{\#\mathcal{J} - \#\mathcal{I}}$.
-
-To recover (@eq-inversion-of-count-with-binomial-multiplicity-general), fix $a \in \mathcal{A}$ and let $\mathcal{P}_a = \{h \in [H] : a + h \in \mathcal{P}\}$ as above. Define, for $\mathcal{I} \subseteq [H]$,
-
-$$
-f_a(\mathcal{I}) 
-= 
-\begin{cases} 1 & \text{if $\mathcal{P}_a = \mathcal{I}$,} \\ 0 & \text{otherwise,}\end{cases}
-\qquad 
-g_a(\mathcal{I}) 
-= 
-\begin{cases} 1 & \text{if $\mathcal{I} \subseteq \mathcal{P}_a$,} \\ 0 & \text{otherwise,}\end{cases}
-$$
-
-so that $g_a(\mathcal{I}) = \prod_{h \in \mathcal{I}} \boldsymbol{1}_{\mathcal{P}}(a + h)$, and $g_a(\mathcal{I}) = \sum_{\mathcal{J} \supseteq \mathcal{I}} f_a(\mathcal{J})$: the sets counted "at least" are obtained from those counted "exactly". Möbius inversion gives
-
-$$
-f_a(\mathcal{I}) = \sum_{\mathcal{J} \, \supseteq \, \mathcal{I}} (-1)^{\#\mathcal{J} - \#\mathcal{I}} g_a(\mathcal{J}).
-$$
-
-Now sum over all $\mathcal{I}$ with $\#\mathcal{I} = m$ and over all $a \in \mathcal{A}$. On the left we obtain $A_m$, since for each $a$ there is exactly one $\mathcal{I}$ with $f_a(\mathcal{I}) = 1$ when $\#\mathcal{P}_a = m$, and none otherwise. On the right, each $\mathcal{J}$ arises once for each of its $\binom{\#\mathcal{J}}{m}$ subsets $\mathcal{I}$ of size $m$, so grouping the $\mathcal{J}$ according to $\#\mathcal{J} = k$ yields $\sum_{k} (-1)^{k - m}\binom{k}{m} S_{k}$.
-
-The truncated form, (@eq-truncated-inclusion-exclusion-identity), is not itself a consequence of Möbius inversion: it is a Bonferroni inequality, and depends on the additional facts that the Boolean lattice is graded and that the quantities being inverted are nonnegative.
+The identity (@eq-inversion-of-count-with-binomial-multiplicity-general) is an instance of Möbius inversion on the Boolean lattice of subsets of $[H]$, and the inequalities of @prp-inclusion-exclusion are Bonferroni inequalities; see [@stanley2012, §3.7] and [@galambos_simonelli1996]. We have preferred to give the short self-contained derivation above.
 
 :::
