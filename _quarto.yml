@@ -22,7 +22,7 @@ book:
   search: true
   reader-mode: true
   page-navigation: true
-  repo-url: https://github.com/tmfreiberg/primes_in_intervals
+  repo-url: https://github.com/tmfreiberg/primes-in-intervals
   repo-actions: [source, issue]
   sidebar:
     style: docked

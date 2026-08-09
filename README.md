@@ -2,7 +2,7 @@
 
 How many of the intervals $(a, a + H]$ contain exactly $m$ primes? Counting them, for $a$ ranging over a window near some large $N$, gives an empirical distribution: a histogram of primes-per-interval. This project computes those distributions at scale, stores them, and compares them against three predictions, the naive one from Cramér's model and two refinements. The empirical distributions are consistently narrower than Cramér's model predicts, and the refinements track that bias.
 
-**The full exposition is a Quarto book: [Biases in the distribution of primes in intervals](https://tmfreiberg.github.io/primes_in_intervals/).** It derives the predictions, walks through the code, and animates the distributions as the sample grows. This README covers installation and the command-line interface; the book is where the mathematics and the worked examples live.
+**The full exposition is a Quarto book: [Biases in the distribution of primes in intervals](https://tmfreiberg.github.io/primes-in-intervals/).** It derives the predictions, walks through the code, and animates the distributions as the sample grows. This README covers installation and the command-line interface; the book is where the mathematics and the worked examples live.
 
 ## What's here
 
@@ -15,7 +15,7 @@ The computation leans on a single sliding-window pass over a prime sieve, so ove
 Requires Python 3.10 or newer.
 
 ```
-git clone https://github.com/tmfreiberg/primes_in_intervals.git
+git clone https://github.com/tmfreiberg/primes-in-intervals.git
 cd primes_in_intervals
 python -m venv .venv
 source .venv/bin/activate        # Windows: .venv\Scripts\activate
