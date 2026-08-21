@@ -27,3 +27,4 @@ book/*_files/
 # deliberately outside version control. Contents vary by repo and are not
 # reproducible from history -- they're covered by file-level backup instead.
 excluded/
+requirements-frozen.txt
