@@ -22,3 +22,8 @@ book/*_files/
 
 # Generated media (the book draws these live; keep only the seven in images/)
 *.mp4
+# ---- Local working material ----
+# Scratch space, drafts, and reference material kept alongside the project but
+# deliberately outside version control. Contents vary by repo and are not
+# reproducible from history -- they're covered by file-level backup instead.
+excluded/
