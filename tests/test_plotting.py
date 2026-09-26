@@ -39,19 +39,30 @@ class TestFrame:
     def test_nested_frame_with_all_curves_and_note(self, nested_overlap):
         fig, ax = plt.subplots()
         keys = list(nested_overlap["distribution"].keys())
-        pii.plot_distribution_frame(
+        pred = pii.plot_distribution_frame(
             ax,
             nested_overlap,
             keys[0],
-            show_binom_alt=True,
-            show_frei=True,
-            show_frei_alt=True,
+            models=("F", "F0", "B_const", "Q_mu", "Q_lambda"),
             note="NB: a reminder",
             ylim_decimals=3,
         )
         labels = [line.get_label() for line in ax.lines]
-        assert r"$\mathrm{Binom}(H,\lambda^*/H)$" in labels
-        assert r"$\mathrm{F^*}(H,m,\lambda^*)$" in labels
+        for model in ("F", "F0", "B_const", "Q_mu", "Q_lambda"):
+            assert pii.MODELS[model] in labels
+        # the predictions drawn are those of the nested range (c[0], c[1]]
+        assert pred["M"] == keys[0][0] and pred["N"] == keys[0][1] - keys[0][0]
+        plt.close(fig)
+
+    def test_negative_values_extend_the_axis(self, analyzed_overlap):
+        fig, ax = plt.subplots()
+        C = list(analyzed_overlap["distribution"].keys())
+        pred = pii.plot_distribution_frame(ax, analyzed_overlap, C[-1], models=("F",))
+        F = pred["F"][: max(analyzed_overlap["distribution"][C[-1]]) + 1]
+        if F.min() < 0:
+            assert ax.get_ylim()[0] < 0
+            texts = [t.get_text() for t in ax.texts]
+            assert any("negative predicted values" in t for t in texts)
         plt.close(fig)
 
     def test_frei_suppressed_off_overlap(self, prime_start_dataset):
@@ -63,7 +74,8 @@ class TestFrame:
         C = list(ds["distribution"].keys())
         pii.plot_distribution_frame(ax, ds, C[-1])
         labels = [line.get_label() for line in ax.lines]
-        assert r"$\mathrm{F}(H,m,\lambda)$" not in labels
+        assert pii.MODELS["F"] not in labels
+        assert pii.MODELS["B_const"] in labels
         plt.close(fig)
 
 

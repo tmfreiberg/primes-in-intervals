@@ -45,15 +45,20 @@ src/primes_in_intervals/   the package
   sieve.py                 the prime generator
   intervals.py             the interval counters (disjoint, overlap, prime-start)
   transforms.py            narrow, partition, nest
-  dataio.py                SQLite storage and retrieval
+  reference.py             independent reference counts for validating the counters
+  dataio.py                SQLite storage and retrieval, with conflict checks and provenance
   statistics.py            distributions and summary statistics
-  predictions.py           the Binomial, F, and F* predictions
-  comparisons.py           compare data to predictions, score the winners
+  predictions.py           the manuscript's predictions: F, F0, Q, and binomial approximations
+  quadrature.py            the averaged integrals, with tolerances and error estimates
+  discrepancies.py         discrepancy measures, tail bounds, mass reports
+  comparisons.py           compare data to predictions and score them
+  cumulative.py            the fixed-H experiment over starting points 1 <= n <= N
   display.py               human-readable tables
-  plotting.py              distribution frames and animations
+  plotting.py              distribution frames, residual and discrepancy plots, animations
   serialize.py             JSON round-tripping for datasets
   cli.py                   the command-line interface
 book/                      the Quarto book source
+scripts/book_animations.py regenerates the book's animations
 docs/cli.md                command-line reference
 tests/                     the test suite
 data/                      a small SQLite database of precomputed results

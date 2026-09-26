@@ -85,16 +85,16 @@ class TestNestedViews:
         m = max(nested_overlap["nested_interval_data"][keys[-1]])
         assert df1.loc[len(keys) - 1, m] == nested_overlap["comparison"][keys[-1]][m][1]
         df4 = pii.display(nested_overlap, comparisons="absolute", single_cell="false")
-        for col in [m, f"B{m}", f"F{m}", f"F*{m}"]:
+        for col in [m, f"B{m}", f"F{m}", f"F0{m}"]:
             assert col in df4.columns
         row = df4.loc[len(keys) - 1]
-        got = tuple(row[[m, f"B{m}", f"F{m}", f"F*{m}"]])
+        got = tuple(row[[m, f"B{m}", f"F{m}", f"F0{m}"]])
         assert got == nested_overlap["comparison"][keys[-1]][m][1]
 
     def test_winners_view(self, nested_overlap):
         pii.compare(nested_overlap)
         pii.winners(nested_overlap)
         df = pii.display(nested_overlap, winners="show")
-        for col in ["B sq error", "F sq error", "F* sq error", "most wins"]:
+        for col in ["B sq error", "F sq error", "F0 sq error", "most wins"]:
             assert col in df.columns
         assert len(df) == len(nested_overlap["nested_interval_data"])

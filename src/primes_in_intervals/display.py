@@ -62,7 +62,7 @@ def display(
         (default ``'off'``) for the plain counts.
     single_cell : str, optional
         Nested datasets with comparisons only: ``'false'`` to expand each
-        tuple into four columns (``m``, ``Bm``, ``Fm``, ``F*m``); anything
+        tuple into four columns (``m``, ``Bm``, ``Fm``, ``F0m``); anything
         else (default ``'true'``) keeps one tuple per cell.
     winners : str, optional
         ``'show'`` for the prediction scoreboard; anything else (default
@@ -91,7 +91,7 @@ def display(
             output: dict = {}
             for i in range(1, len(C)):
                 if interval_type == "overlap":
-                    output[i] = {"B - A": C[i] - C[0], "A": C[0], "B": C[1], "H": H}
+                    output[i] = {"B - A": C[i] - C[0], "A": C[0], "B": C[i], "H": H}
                 if interval_type == "disjoint":
                     output[i] = {
                         "(B - A)/H": (C[i] - C[0]) // H,
@@ -102,8 +102,8 @@ def display(
                 if interval_type == "prime_start":
                     output[i] = {
                         "pi(B) - pi(A)": sum(dataset["data"][C[i]].values()),
-                        "A": C[i][0],
-                        "B": C[i][1],
+                        "A": C[0],
+                        "B": C[i],
                         "H": H,
                     }
                 for w in dataset["winners"][C[i]]:
@@ -239,8 +239,9 @@ def display(
                 )
                 if comparisons == "absolute" or comparisons == "probabilities":
                     text = text + (
-                        "In tuple (a,b,c,d), a is actual data, b is Binomial "
-                        "prediction, c is frei prediction, and d is frei_alt prediction."
+                        "In tuple (a,b,c,d), a is actual data, b is the binomial "
+                        "prediction Binom(H, mu/H), c is the corrected prediction F, "
+                        "and d is the uncorrected prediction F0 (M = A, N = B - A)."
                     )
                 if zeroth_item == "no show":
                     if orient == "columns":
@@ -297,7 +298,7 @@ def display(
                     else:
                         Mexpand: list = []
                         for m in M:
-                            Mexpand.extend([m, f"B{m}", f"F{m}", f"F*{m}"])
+                            Mexpand.extend([m, f"B{m}", f"F{m}", f"F0{m}"])
                         j = 0
                         while j < len(Mexpand):
                             m = Mexpand[j]

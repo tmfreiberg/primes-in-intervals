@@ -1,11 +1,12 @@
 # Worked examples {#sec-worked}
 
-Three larger runs, putting the whole pipeline together at $e^{20}$ and $e^{21}$: many interval lengths at once, the alternative prediction $F^*$ on stage, and a nested animation. The heavy computations were run once and saved; the cells that took minutes to hours are displayed but not executed, and everything downstream retrieves from the database. The folded cell below defines the `pick` helper of @sec-retrieve.
+Three larger runs, putting the whole pipeline together at $e^{20}$ and $e^{21}$: many interval lengths at once, the discrepancy measures across all of them, and a nested animation. The heavy computations were run once and saved; the cells that took minutes to hours are displayed but not executed, and everything downstream retrieves from the database. The folded cell below defines the `pick` helper of @sec-retrieve.
 
 {{< include _pick.qmd >}}
 
 ```{python}
 import matplotlib.pyplot as plt
+import pandas as pd
 
 import primes_in_intervals as pii
 from primes_in_intervals import (
@@ -16,13 +17,36 @@ from primes_in_intervals import (
     plot_distribution_frame,
     retrieve,
     save,
+    score,
 )
+```
+
+All the windows in this chapter are centred at a point $x_0$ of the form $[e^k]$, and we describe them in the text boxes of the figures as $x_0 - K < a \le x_0 + K$. The small function below builds such a text box. Given the dataset, the checkpoint, $H$ and the predictions being drawn, it returns the text, quoting $\mu$ from the very predictions on the plot. (In the notation of @sec-compare, the window is $M < a \le M + N$ with $M = x_0 - K$ and $N = 2K$.)
+
+```{python}
+def centred_overlay(x0, x0_label, variable=r'$X = \pi(a + H) - \pi(a)$', start='a', extra=''):
+    """Return an overlay function for windows centred at x0."""
+    def overlay(X, c, H, pred):
+        upper = c[1] if isinstance(c, tuple) else c
+        s = X['statistics'][c]
+        med = int(s['med']) if s['med'] == int(s['med']) else s['med']
+        return (variable + '\n\n'
+                + fr'$x_0 - K < {start} \leq x_0 + K$' + '\n\n'
+                + fr'$H = {H}$, $x_0 = {x0_label}$, $K = {upper - x0}$' + '\n\n'
+                + extra
+                + fr'$\mu = {pred["mu"]:.5f}$' + '\n\n'
+                + r'$\mathbb{E}[X] = $' + f"{s['mean']:.5f}" + '\n\n'
+                + r'$\mathrm{Var}(X) = $' + f"{s['var']:.5f}" + '\n\n'
+                + fr'median : ${med}$' + '\n\n'
+                + fr"mode(s): ${s['mode']}$")
+    return overlay
 ```
 
 ## Example 4 {#sec-eg4worked}
 
+Ten interval lengths over one window about $e^{20}$.
+
 ```{python}
-# In this example, we'll try our alternative estimate F*(H,m,lambda*), lambda* = H/log N.
 N = int(np.exp(20))
 HH = [20,30,40,50,60,70,80,90,100,200]
 step = 10**3
@@ -31,7 +55,7 @@ B = N + 10**5
 C = list(range(A,B+1,step))
 ```
 
-Ten interval lengths over one pass each of half a billion integers: the computation below took a little under an hour, so it is shown, not run.
+Ten passes over the primes up to half a billion: the computation below took a little under an hour, so it is shown, not run.
 
 ```{python}
 #| eval: false
@@ -40,7 +64,7 @@ start = timer()
 for H in HH:
     exp20[H] = intervals(C,H,interval_type='overlap')
 end = timer()
-end - start 
+end - start
 ```
 
 ```
@@ -61,54 +85,46 @@ for H in HH:
     getexp20[H] = pick(retrieve(H), A)
 ```
 
+We analyze, compare and score all ten.
+
 ```{python}
 for H in HH:
     analyze(getexp20[H])
+    compare(getexp20[H])
+    score(getexp20[H])
 ```
+
+At the final checkpoint, which covers all two hundred thousand starting points of the window, here are $\mu$, the discrepancy $E_1$ of each prediction on the central range, and the ratio $E_1(F)/E_1(F_0)$, for every length:
 
 ```{python}
+rows = {}
 for H in HH:
-    compare(getexp20[H])
+    X = getexp20[H]
+    c = max(X['data'])
+    s = X['scores'][c]
+    rows[H] = {'mu': X['prediction_parameters'][c]['mu'],
+               'm range': f"{s['central']['F']['m_lo']}..{s['central']['F']['m_hi']}",
+               'E1(Binom)': s['central']['B']['E1'],
+               'E1(F0)': s['central']['F0']['E1'],
+               'E1(F)': s['central']['F']['E1'],
+               'E1(F)/E1(F0)': s['ratio']['central']['E1']}
+pd.DataFrame.from_dict(rows, orient='index').rename_axis('H')
 ```
 
-Now the plot, for $H = 90$: this is the figure where the alternative pair takes the stage, $\mathrm{Binom}(H, \lambda^*/H)$ and $F^*(H,m,\lambda^*)$ with $\lambda^* = H/\log N$, in place of the usual pair. The final frame's text box states the range in its centered form, so we pass the overlay as a literal string.
+The correction reduces $E_1$ at every length, by a factor of between two and five. On the whole it helps less as $H$ grows (the ratio rises from about $0.2$ at $H = 20$ to $0.44$ at $H = 200$, though not steadily), which is in keeping with the size of the correction: it is proportional to $\eta(H)$, which is about $(\log H)/H$ and so decreases as $H$ grows.
+
+Now the plot, for $H = 90$. Besides $F$ and $F_0$ we draw the local expression $Q(m; \mu, H)$, evaluated at the single averaged parameter; the density of primes barely changes across a window this narrow, so the purple markers of $Q(m; \mu, H)$ sit almost exactly on the green markers of $F$.
 
 ```{python}
 H = 90 # 20,30,40,50,70,80,200
 X = getexp20[H]
-
-A = X['header']['lower_bound']
-H = X['header']['interval_length']
 C = list(X['distribution'].keys())
-B = C[-1]
-
-N = (A + B)/2
-p_alt = 1/np.log(N)
-mu = X['statistics'][B]['mean']
-sigma = X['statistics'][B]['var']
-med = X['statistics'][B]['med']
-if med == int(med):
-    med = int(med)
-modes = X['statistics'][B]['mode']
-
-overlay_text = (fr'$X = \pi(a + H) - \pi(a)$' + '\n\n'
-                + fr'$N - M < a \leq N + M$' + '\n\n'
-                + fr'$H = {H}$' + '\n\n'
-                + fr'$N = [\exp(20)]$' + '\n\n'
-                + fr'$M = {int(B - N)}$' + '\n\n'
-                + fr'$\lambda^* = H/\log N = {H*p_alt:.5f}$' + '\n\n'
-                + r'$\mathbb{E}[X] = $' + f'{mu:.5f}' + '\n\n'
-                + r'$\mathrm{Var}(X) = $' + f'{sigma:.5f}' + '\n\n'
-                + fr'median : ${med}$' + '\n\n'
-                + fr'mode(s): ${modes}$')
 
 plt.rcParams.update({'font.size': 22})
 fig, ax = plt.subplots(figsize=(22, 11))
 fig.suptitle('Primes in intervals')
-plot_distribution_frame(ax, X, B,
-                        show_binom=False, show_binom_alt=True,
-                        show_frei=False, show_frei_alt=True,
-                        overlay=overlay_text, overlay_position=(0.74, 0.18))
+plot_distribution_frame(ax, X, C[-1], models=('F', 'F0', 'Q_mu'),
+                        overlay=centred_overlay(N, r'[\exp(20)]'), overlay_position=(0.70, 0.18))
 plt.rcParams['savefig.facecolor'] = 'white'
 plt.show()
 ```
@@ -137,39 +153,17 @@ N_exp20_H_76 = pick(retrieve(76), 485065195)
 analyze(N_exp20_H_76)['header']
 ```
 
-The plot is the standard pair, $\mathrm{Binom}(H, \lambda/H)$ against $F(H,m,\lambda)$, with the centered overlay on the final frame.
+The plot shows the default trio, $F$, $F_0$ and $\mathrm{Binom}(H, \mu/H)$, with the centred text box on the final frame. Here $\mu = 76/20 = 3.8$.
 
 ```{python}
 X = N_exp20_H_76
-
-A = X['header']['lower_bound']
-H = X['header']['interval_length']
 C = list(X['distribution'].keys())
-B = C[-1]
-
-N = (A + B)/2
-p = 1/(np.log(N) - 1)
-mu = X['statistics'][B]['mean']
-sigma = X['statistics'][B]['var']
-med = X['statistics'][B]['med']
-if med == int(med):
-    med = int(med)
-modes = X['statistics'][B]['mode']
-
-overlay_text = (fr'$X = \pi(a + H) - \pi(a)$' + '\n\n'
-                + fr'$N - M < a \leq N + M$' + '\n\n'
-                + fr'$H = {H}$' + '\n\n'
-                + fr'$N = [\exp(20)]$' + '\n\n'
-                + fr'$M = {int(B - N)}$' + '\n\n'
-                + fr'$\lambda = H/(\log N - 1) = {H*p:.5f}$' + '\n\n'
-                + r'$\mathbb{E}[X] = $' + f'{mu:.5f}' + '\n\n'
-                + r'$\mathrm{Var}(X) = $' + f'{sigma:.5f}' + '\n\n'
-                + fr'median : ${med}$' + '\n\n'
-                + fr'mode(s): ${modes}$')
 
 fig, ax = plt.subplots(figsize=(22, 11))
 fig.suptitle('Primes in intervals')
-plot_distribution_frame(ax, X, B, overlay=overlay_text, overlay_position=(0.74, 0.18))
+plot_distribution_frame(ax, X, C[-1],
+                        overlay=centred_overlay(int(np.exp(20)), r'[\exp(20)]'),
+                        overlay_position=(0.70, 0.18))
 plt.show()
 ```
 
@@ -177,13 +171,13 @@ The full animation is saved with `save_gif` or `save_mp4` (or `pii animate`); th
 
 ## Example 6 (nested intervals) {#sec-eg6worked}
 
-The largest run: nested intervals about $e^{21}$, thirteen interval lengths from $20$ to $140$. The checkpoints are placed symmetrically about $N$, a thousand apart, with $N$ itself excluded, so that nesting pairs them off exactly.
+The largest run: nested intervals about $e^{21}$, thirteen interval lengths from $20$ to $140$. The checkpoints are placed symmetrically about $x_0 = [e^{21}]$, a thousand apart, with $x_0$ itself excluded, so that nesting pairs them off exactly.
 
 ```{python}
 N = int(np.exp(21))
 K = 199
 k = (K - 1)//2 # = 99
-Delta = 10**3 
+Delta = 10**3
 D = []
 for j in range(k + 1):
     D.extend([N - (j + 1)*Delta, N + (j + 1)*Delta])
@@ -219,60 +213,35 @@ for H in HH:
     analyze(NEXP21[H])
 ```
 
-The plot, for $H = 60$, is the nested version: each frame is one of the hundred nested intervals, the innermost first, the sample growing outward from the midpoint, with the vertical axis rounded at the third decimal for these smaller proportions.
+The plot, for $H = 60$, is the nested version: each frame is one of the hundred nested intervals, the innermost first, the sample growing outward from the centre, with the vertical axis rounded at the third decimal for these smaller proportions. Here $\mu = 60/21 = 2.857\ldots$.
 
 ```{python}
 # HH = [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140]
 X = NEXP21[HH[4]]
-
-H = X['header']['interval_length']
 C = list(X['distribution'].keys())
-c = C[-1]
-
-A = c[0]
-B = c[1]
-N = (A + B)//2
-p = 1/(np.log(N) - 1)
-mu = X['statistics'][c]['mean']
-sigma = X['statistics'][c]['var']
-med = X['statistics'][c]['med']
-if med == int(med):
-    med = int(med)
-modes = X['statistics'][c]['mode']
-
-overlay_text = (fr'$X = \pi(a + H) - \pi(a)$' + '\n\n'
-                + fr'$N - M < a \leq N + M$' + '\n\n'
-                + fr'$H = {H}$' + '\n\n'
-                + r'$N = [e^{21}]$' + '\n\n'
-                + fr'$M = 10^5$' + '\n\n'
-                + fr'$\lambda = H/(\log N - 1) = {H*p:.5f}$' + '\n\n'
-                + r'$\mathbb{E}[X] = $' + f'{mu:.5f}' + '\n\n'
-                + r'$\mathrm{Var}(X) = $' + f'{sigma:.5f}' + '\n\n'
-                + fr'median : ${med}$' + '\n\n'
-                + fr'mode(s): ${modes}$')
 
 plt.rcParams.update({'font.size': 22})
 fig, ax = plt.subplots(figsize=(22, 11))
 fig.suptitle('Primes in intervals')
-plot_distribution_frame(ax, X, c, ylim_decimals=3,
-                        overlay=overlay_text, overlay_position=(0.75, 0.15))
+plot_distribution_frame(ax, X, C[-1], ylim_decimals=3,
+                        overlay=centred_overlay(N, '[e^{21}]'), overlay_position=(0.70, 0.15))
 plt.rcParams['savefig.facecolor'] = 'white'
 plt.show()
 ```
 
 The animation, innermost interval outward:
 
-![Animated distribution of primes in overlapping intervals of length 60 in nested ranges about e^21.](/images/N_exp21_H_60.gif){fig-alt="Animation of the distribution of primes in intervals of length 60 about e^21, the nested sample growing outward from the midpoint, with the Binomial and F prediction curves overlaid."}
+![Animated distribution of primes in overlapping intervals of length 60 in nested ranges about e^21.](/images/N_exp21_H_60.gif){fig-alt="Animation of the distribution of primes in intervals of length 60 about e^21, the nested sample growing outward from the centre, with the predictions F, F0 and the Binomial marked at each m."}
 
 ## Supplementary examples {#sec-supplementary}
 
-Four further examples, at sizes where everything runs in seconds, so every cell below computes live: the Nachlass tables in full, the nested pipeline at $e^{17}$ for overlapping and for prime-starting intervals, and a closing remark on the choice of $\lambda$. (These complement @sec-eg3display's one-line Goldschmidt table.)
+Four further examples, at sizes where everything runs in seconds, so every cell below computes live: the Nachlass tables in full, the nested pipeline at $e^{17}$ for overlapping and for prime-starting intervals, and a closing remark on the parameters $\mu$ and $\lambda$. (These complement @sec-eg3display's one-line Goldschmidt table.)
 
 ### Example 1 {#sec-eg1supp}
 
 Tables from Gauss's _Nachlass_. Create data for primes in disjoint intervals of length $100$ (starting at multiples of $100$), up to $10^7$. Checkpoints every $10^5$.
 
-By the bye, an interval of the form $[100k, 100k + 100)$ is referred to as a "Centade" in Gauss's _Nachlass_. Analogous to the term Decade (a 10-year period from years '0 to '9), a Centade is a 100-year period from '00 to '99. 
+By the bye, an interval of the form $[100k, 100k + 100)$ is referred to as a "Centade" in Gauss's _Nachlass_. Analogous to the term Decade (a 10-year period from years '0 to '9), a Centade is a 100-year period from '00 to '99.
 
 ```{python}
 C = list(range(0,10*10**6 + 1, 10**5))
@@ -302,7 +271,7 @@ Here's the original: Gauss/Goldschmidt were only short by $21$ primes in the end
 
 ### Example 2 {#sec-eg2supp}
 
-Let's look at a series of nested intervals centred around $N = [e^{17}] = 24,154,952$. We take the density of primes close to $N$ as $1/(\log N - 1)$, which is $1/15.999999968802452\ldots$, virtually $1/16$. We'll get data for intervals of length $64, 68, 72, 76, 80$. 
+Let's look at a series of nested intervals centred at $x_0 = [e^{17}] = 24{,}154{,}952$. Every starting point is within $10^4$ of $x_0$, and $\log t$ changes by less than $10^{-3}$ over such a window, so the density of primes throughout it is $1/17$ to high accuracy, and the averaged parameter is $\mu = H/17$ to seven decimal places. We'll get data for intervals of length $64, 68, 72, 76, 80$, for which $\mu$ is about $3.76$, $4$, $4.24$, $4.47$ and $4.71$.
 
 ```{python}
 N = int(np.exp(17))
@@ -313,7 +282,7 @@ for H in HH:
     EXP17[H] = pii.intervals(C, H, 'overlap')
 ```
 
-Right now we have data for the intervals $(N  - 10^4, N - 10^4 + 100k]$, $k = 1,\ldots,100$. Let's reconfigure the data to consider nested intervals $(N - 100k, N + 100k]$, $k = 1,\ldots,100$, all centred around $N$. We'll analyze the data (get the distributions and statistics) while we're at it.
+Right now we have data for the intervals $(x_0 - 10^4, x_0 - 10^4 + 100k]$, $k = 1,\ldots,200$. Let's reconfigure the data to consider nested intervals $(x_0 - 100k, x_0 + 100k]$, $k = 1,\ldots,100$, all centred at $x_0$. We'll analyze the data (get the distributions and statistics) while we're at it.
 
 ```{python}
 EXP17NEST = {}
@@ -329,24 +298,21 @@ EXP17_76_NESTtable = pii.display(EXP17NEST[76])
 EXP17_76_NESTtable.tail(5)
 ```
 
-Let's compare the data (for $H = 76$) to three predictions: the Binomial, our prediction, and the alternate version of our prediction (with the density of primes around $N$ taken to be $1/\log N$). Specifically, with $\lambda = H/(\log N - 1)$ (and assuming $\lambda \asymp 1$), the naive prediction based purely on Cramér's model is the Binomial distribution $\mathrm{Binom}(H,\lambda/H)$, whose probability mass function is given by 
+Let's compare the data (for $H = 76$) to the three predictions of @sec-compare. There is a pleasing parallel between them. The naive prediction based purely on Cramér's model is the Binomial distribution $\mathrm{Binom}(H,\mu/H)$, whose probability mass function, for $\mu$ of constant size and $H$ large, expands as
+$$
+f(m; H, \mu/H) = \binom{H}{m}\left(\frac{\mu}{H}\right)^m\left(1 - \frac{\mu}{H}\right)^{H - m} = \frac{e^{-\mu}\mu^m}{m!}\bigg[1 + \frac{Q_1(\mu,m)}{H} + \frac{Q_2(\mu,m)}{H^2} + \cdots\bigg],
+$$
+where each $Q_j(\mu,m)$ is a polynomial in $\mu$ and $m$, and in particular
+$$
+Q_1(\mu,m) = \frac{m - (m - \mu)^2}{2}.
+$$
+The local expression of @sec-predictions is
+$$
+Q(m; \mu, H) = \frac{e^{-\mu}\mu^m}{m!}\left[1 + \frac{Q_1(\mu,m)}{H}\big(\log H + \log 2\pi + \gamma - 1\big)\right].
+$$
+So the correction has exactly the shape of the Binomial's first-order term, but it is larger by the factor $\log H + \log 2\pi + \gamma - 1$, which is about $5.7$ when $H = 76$. The primes deviate from the Poisson law in the same direction as the independent Bernoulli trials of Cramér's model do, but several times more strongly. The prediction $F$ averages this local expression over the window, and $F_0$ averages the Poisson term alone.
 
-$$f(m; H, \lambda/H) = \binom{H}{m}\left(\frac{\lambda}{H}\right)^m\left(1 - \frac{\lambda}{H}\right)^{H - m} =  \frac{e^{-\lambda}\lambda^m}{m!}\bigg[1 + \frac{Q_1(\lambda,m)}{H} + \frac{Q_2(\lambda,m)}{H^2} + \cdots\bigg],$$
-where each $Q_j(\lambda,m)$ is a polynomial in $\lambda$ and $m$, and in particular, 
-
-$$Q_1(\lambda,m) = \frac{m - (m - \lambda)^2}{2}.$$
-
-Our prediction is 
-
-$$F(H,m,\lambda) = \frac{e^{-\lambda}\lambda^m}{m!}\left[1 + \frac{Q_1(\lambda,m)}{H}\left(\log H + (\log 2\pi + \gamma - 1)\right) \right].$$
-
-Our alternative prediction is, with $\lambda^* = H/\log N$, 
-
-$$F^*(H,m,\lambda^*) = \frac{e^{-\lambda^*}(\lambda^*)^m}{m!}\left[1 + \frac{\lambda^*}{H}(m - \lambda^*) + \frac{\log H + (\log 2\pi + \gamma - 1)}{H}Q_1(m,\lambda^*) \right].$$
-
-The table below shows tuples $(a,b,c,d)$, where $a$ is the actual number, $b$ is the Binomial-based prediction, $c$ is our prediction and $d$ is our alternative prediction. It would be nice to be able to conjecture something about a tertiary term!
-
-We'll just show the last five rows of the table as it's a bit long and hard to read.
+The table below shows tuples $(a,b,c,d)$, where $a$ is the actual number, $b$ is the Binomial prediction, $c$ is $F$, and $d$ is $F_0$. We'll just show the last five rows, as the table is a bit long and hard to read.
 
 ```{python}
 pii.compare(EXP17NEST[76])
@@ -354,11 +320,20 @@ EXP17_76_NESTcompare = pii.display(EXP17NEST[76], comparisons='absolute').tail(5
 EXP17_76_NESTcompare
 ```
 
-We can perhaps work on the formatting of such tables.
+Which prediction is closest, and by how much, is hard to see by glancing at the above table. The discrepancy measures of @sec-discrepancy answer it. Here is $E_1$ for every tenth nested interval, on the central range, with the ratio $E_1(F)/E_1(F_0)$:
 
-Now, we want to know which prediction is the "best", and this is hard to see by glancing at the above table. By "best" we mean gives the smallest sum-of-squared-error over $m$ (number of primes in an interval). We're mainly interested in comparing $F$ and $F^*$. Comparing $F^*$ to the Binomial is not really apples-to-apples because the Binomial we are using takes the probability of finding a prime around $N$ as being $\lambda/H = 1/(\log N - 1)$, rather than $\lambda^*/H = 1/\log N$, as in $F^*$.
+```{python}
+pii.score(EXP17NEST[76])
+Cn = list(EXP17NEST[76]['nested_interval_data'].keys())
+rows = {}
+for c in Cn[9::10]:
+    s = EXP17NEST[76]['scores'][c]
+    rows[c[1] - c[0]] = {name: s['central'][name]['E1'] for name in ('B', 'F', 'F0')}
+    rows[c[1] - c[0]]['E1(F)/E1(F0)'] = s['ratio']['central']['E1']
+pd.DataFrame.from_dict(rows, orient='index').rename_axis('N')
+```
 
-We'll use our ```winners``` function to determine the best predictions for each interval. For each prediction, this function also gives us the $m$ for which that prediction gives a smaller error than the others. 
+The older scoreboard `winners` gives, for each nested interval, the squared errors and the values of $m$ at which each prediction's count is closest to the actual count:
 
 ```{python}
 pii.winners(EXP17NEST[76])
@@ -371,49 +346,24 @@ Finally, let's make an animated plot, with one frame for each of the intervals c
 ```{python}
 # HH = [64, 68, 72, 76, 80]
 X = EXP17NEST[HH[3]]
-
-H = X['header']['interval_length']
 C = list(X['distribution'].keys())
-c = C[-1]
-
-A = c[0]
-B = c[1]
-N = (A + B)//2
-p = 1/(np.log(N) - 1)
-mu = X['statistics'][c]['mean']
-sigma = X['statistics'][c]['var']
-med = X['statistics'][c]['med']
-if med == int(med):
-    med = int(med)
-modes = X['statistics'][c]['mode']
-
-overlay_text = (fr'$X = \pi(a + H) - \pi(a)$' + '\n\n'
-                + fr'$N - M < a \leq N + M$' + '\n\n'
-                + fr'$H = {H}$' + '\n\n'
-                + r'$N = [e^{17}]$' + '\n\n'
-                + fr'$M = 10^4$' + '\n\n'
-                + fr'$\lambda = H/(\log N - 1) = {H*p:.5f}$' + '\n\n'
-                + r'$\mathbb{E}[X] = $' + f'{mu:.5f}' + '\n\n'
-                + r'$\mathrm{Var}(X) = $' + f'{sigma:.5f}' + '\n\n'
-                + fr'median : ${med}$' + '\n\n'
-                + fr'mode(s): ${modes}$')
 
 plt.rcParams.update({'font.size': 22})
 fig, ax = plt.subplots(figsize=(22, 11))
 fig.suptitle('Primes in intervals')
-plot_distribution_frame(ax, X, c, ylim_decimals=3,
-                        overlay=overlay_text, overlay_position=(0.75, 0.15))
+plot_distribution_frame(ax, X, C[-1], ylim_decimals=3,
+                        overlay=centred_overlay(N, '[e^{17}]'), overlay_position=(0.70, 0.15))
 plt.rcParams['savefig.facecolor'] = 'white'
 plt.show()
 ```
 
 And the animation itself:
 
-![Animated distribution of primes in overlapping intervals of length 76 in nested ranges about e^17.](/images/EXP17_76_NESTanim.gif){fig-alt="Animation of the distribution of primes in intervals of length 76 about e^17, the nested sample growing outward, with the Binomial and F curves overlaid."}
+![Animated distribution of primes in overlapping intervals of length 76 in nested ranges about e^17.](/images/EXP17_76_NESTanim.gif){fig-alt="Animation of the distribution of primes in intervals of length 76 about e^17, the nested sample growing outward, with the predictions F, F0 and the Binomial marked at each m."}
 
 ### Example 3 {#sec-eg3supp}
 
-Let's go through the steps of [Example 2](#sec-eg2supp), but instead of counting all intervals of the form $(a, a + H]$ as $a$ runs over all integers in the range $(N - M, N + M]$, let's consider only intervals of the form $(p, p + H]$ as $p$ runs over only the _primes_ in the range $(N - M, N + M]$. We have not yet worked through the details of the second-order term in our prediction in this case, but up to first order approximation we should still have $e^{-\lambda}\lambda^m/m!$...
+Let's go through the steps of [Example 2](#sec-eg2supp), but instead of counting all intervals of the form $(a, a + H]$ as $a$ runs over all integers in the range $(x_0 - 10^4, x_0 + 10^4]$, let's consider only intervals of the form $(p, p + H]$ as $p$ runs over only the _primes_ in that range. We have not worked through the details of the second-order term in this case, but to first order we should still see the Poisson distribution.
 
 First we generate the data using the ```'prime_start'``` option in our ```intervals``` function.
 
@@ -426,7 +376,7 @@ for H in HH:
     PSEXP17[H] = pii.intervals(C, H, 'prime_start')
 ```
 
-Let's centre the intervals around $N$ with the ```nest``` function.
+Let's centre the intervals at $x_0$ with the ```nest``` function.
 
 ```{python}
 PSEXP17NEST = {}
@@ -442,7 +392,7 @@ PSEXP17_76_NESTtable = pii.display(PSEXP17NEST[76])
 PSEXP17_76_NESTtable.tail(5)
 ```
 
-Although our predictions have only been worked out for the case of overlapping intervals, and the secondary term in the case of disjoint/left-endpoint-prime intervals might well be a bit different, we can nevertheless compare the data to these "predictions"...
+Although $F$ and $F_0$ were derived for overlapping intervals, and the second-order term for intervals starting at primes might well be different, we can nevertheless compare the data to them...
 
 ```{python}
 pii.compare(PSEXP17NEST[76])
@@ -450,87 +400,65 @@ PSEXP17_76_NESTcompare = pii.display(PSEXP17NEST[76], comparisons='absolute').ta
 PSEXP17_76_NESTcompare
 ```
 
-...and see which not-really-a-prediction fares best...
+...and see how far off each of these not-really-predictions is:
 
 ```{python}
-pii.winners(PSEXP17NEST[76])
-PSEXP17_76_NESTwinners = pii.display(PSEXP17NEST[76], winners='show')
-PSEXP17_76_NESTwinners.tail(10)
+pii.score(PSEXP17NEST[76])
+c = list(PSEXP17NEST[76]['nested_interval_data'].keys())[-1]
+pd.DataFrame(PSEXP17NEST[76]['scores'][c]['central']).loc[['E1', 'E2', 'Einf']]
 ```
 
-And now we can grok everything with an animation... Actually, these not-necessarily-predictions look half-decent, given that there are only about $1000$ intervals being used for the data. Here, all four curves are drawn, the standard pair and the alternative pair, with a caveat boxed at the top; the final frame:
+With only about twelve hundred intervals in the widest window (one for each prime in it), the data are noisy, and no conclusion should be drawn from these numbers. Here is the final frame, with $F$ and $F_0$ drawn alongside the Binomial and a caveat boxed at the top:
 
 ```{python}
 # HH = [64, 68, 72, 76, 80]
 X = PSEXP17NEST[HH[3]]
-
-H = X['header']['interval_length']
 C = list(X['distribution'].keys())
 c = C[-1]
-
-A = c[0]
-B = c[1]
-N = (A + B)//2
 PI = sum(X['nested_interval_data'][c].values())
-p = 1/(np.log(N) - 1)
-p_alt = 1/(np.log(N))
-mu = X['statistics'][c]['mean']
-sigma = X['statistics'][c]['var']
-med = X['statistics'][c]['med']
-if med == int(med):
-    med = int(med)
-modes = X['statistics'][c]['mode']
-
-overlay_text = (fr'$X = \pi(p + H) - \pi(p)$' + '\n\n'
-                + fr'$N - M < p \leq N + M$, $p$ prime' + '\n\n'
-                + fr'$\pi(N + M) - \pi(N - M) = {PI}$' + '\n\n'
-                + fr'$H = {H}$, '
-                + r'$N = [e^{17}]$, '
-                + fr'$M = 10^4$' + '\n\n'
-                + fr'$\lambda = H/(\log N - 1) = {H*p:.5f}$' + '\n\n'
-                + fr'$\lambda^* = H/\log N = {H*p_alt:.5f}$' + '\n\n'
-                + r'$\mathbb{E}[X] = $' + f'{mu:.5f}' + '\n\n'
-                + r'$\mathrm{Var}(X) = $' + f'{sigma:.5f}' + '\n\n'
-                + fr'median : ${med}$' + '\n\n'
-                + fr'mode(s): ${modes}$')
 
 fig, ax = plt.subplots(figsize=(22, 11))
 fig.suptitle('Primes in intervals')
-plot_distribution_frame(ax, X, c,
-                        show_binom_alt=True, show_frei=True, show_frei_alt=True,
-                        note='NB: $F$ and $F^*$ might not be applicable' + '\n' + 'in this case, without modification.',
-                        overlay=overlay_text, overlay_position=(0.75, 0.15))
+plot_distribution_frame(ax, X, c, models=('F', 'F0', 'B_const'),
+                        note='NB: $F$ and $F_0$ might not be applicable' + '\n' + 'in this case, without modification.',
+                        overlay=centred_overlay(N, '[e^{17}]',
+                                                variable=r'$X = \pi(p + H) - \pi(p)$, $p$ prime',
+                                                start='p',
+                                                extra=fr'$\pi(x_0 + K) - \pi(x_0 - K) = {PI}$' + '\n\n'),
+                        overlay_position=(0.70, 0.15))
 plt.show()
 ```
 
-![Animated distribution of primes in prime-starting intervals of length 76 in nested ranges about e^17.](/images/PSEXP17_76_NESTanim.gif){fig-alt="Animation of the distribution of primes in intervals of length 76 whose left endpoints are prime, about e^17, with all four prediction curves overlaid and a caveat that F and F* may not apply."}
+![Animated distribution of primes in prime-starting intervals of length 76 in nested ranges about e^17.](/images/PSEXP17_76_NESTanim.gif){fig-alt="Animation of the distribution of primes in intervals of length 76 whose left endpoints are prime, about e^17, with F, F0 and the Binomial marked at each m and a caveat that F and F0 may not apply."}
 
 ### Example 4 {#sec-eg4supp}
 
-We use $\lambda = H/(\log N - 1)$ in our prediction $F(H,m,\lambda)$ because the density of primes close to $N$ is approximately $1/(\log N - 1)$, by the prime number theorem. Actually, the prime number theorem says that the number of primes up to $N$ is well-approximated by 
+A closing remark on the parameters. The prime number theorem says that the number of primes up to $N$ is well approximated by
+$$
+\int_2^N \frac{dt}{\log t} = \frac{N}{\log N} + \frac{N}{(\log N)^2} + \frac{2N}{(\log N)^3} + \cdots .
+$$
+Thus, the average density of primes up to $N$ is approximated by
+$$
+\frac{1}{N} \int_2^N \frac{dt}{\log t} = \frac{1}{\log N} + \frac{1}{(\log N)^2} + \frac{2}{(\log N)^3} + \cdots .
+$$
+(Indeed, Gauss's observation from his numerical data was that the density of primes around $n$ is around $1/\log n$, so that the number of primes up to $N$ may be estimated by integrating this density.) Notice that
+$$
+\frac{1}{\log N - 1} = \frac{1}{\log N} + \frac{1}{(\log N)^2} + \frac{1}{(\log N)^3} + \cdots,
+$$
+and so
+$$
+\frac{1}{N} \int_2^N \frac{dt}{\log t} = \frac{1}{\log N - 1} + O\left(\frac{1}{(\log N)^3}\right).
+$$
+This is why the paper's main statement, which concerns all the starting points $1 \le n \le N$, uses $\lambda = H/(\log N - 1)$: it is $H$ times the average density over the whole range, up to an error that is absorbed into the error terms. The averaged parameter $\mu$ of @sec-predictions is that average exactly, and $\lambda$ is its two-term approximation; replacing $\lambda$ by $H/(\log N - 1 + \epsilon(N))$, with $\epsilon(N) \to 0$ rapidly enough, does not change the form of the prediction.
 
-$$\int_2^N \frac{dt}{\log t} = \frac{N}{\log N} + \frac{N}{(\log N)^2} + \frac{2N}{(\log N)^3} + \cdots .$$
+Note carefully what the $-1$ is. It is not a feature of the density near $N$, which is $1/\log N$; it arises from averaging $1/\log t$ over all $t$ up to $N$, most of which are smaller than $N$. For a window of starting points far from the origin, $M < n \le M + N$ with $M/N$ large, the average of $\log t$ over the window is $\log N + c(M/N)$, which is essentially the logarithm of the window's midpoint, with no $-1$ (@sec-predictions). This is why, in all the windows of this chapter, $\mu$ is $H/k$ for a window centred at $[e^k]$, rather than $H/(k - 1)$.
 
-Thus, the average density of primes up to $N$ is approximated by 
+The animation below was made with $x_0$ chosen so that the average density over the window $(x_0 - 10^6, x_0 + 10^6]$,
+$$
+\frac{1}{2\cdot 10^6} \int_{x_0 - 10^6}^{x_0 + 10^6} \frac{dt}{\log t},
+$$
+is very close to $1/20$, with $H = 100$, so that $\mu = 5$. Its dashed curves show the local expression at the averaged parameter, $Q(m; \mu, H)$, labelled there $F(H, m, \lambda)$ with $\lambda = \mu$, and the Binomial $\mathrm{Binom}(H, \mu/H)$. Over a window this narrow, $Q(m; \mu, H)$ and $F$ are practically indistinguishable.
 
-$$\frac{1}{N} \int_2^N \frac{dt}{\log t} = \frac{1}{\log N} + \frac{1}{(\log N)^2} + \frac{2}{(\log N)^3} + \cdots .$$
+![Animated distribution for intervals of length 100 about a centre chosen so that the average density over the window is very close to 1/20.](/images/li20_H_100.gif){fig-alt="Animation of the distribution of primes in intervals of length 100, the density parameter chosen via the logarithmic integral to be very close to one twentieth."}
 
-(Indeed, Gauss's observation from his numerical data was that the density of primes around $n$ is around $1/\log n$, so that the number of primes around $N$ may be estimated by integrating over this density.) Notice that 
-
-$$\frac{1}{\log N - 1} = \frac{1}{\log N} + \frac{1}{(\log N)^2} + \frac{1}{(\log N)^3} + \cdots, $$
-
-and so $1/(\log N - 1)$ is a good proxy for what the prime number theorem gives us: more precisely, 
-
-$$\frac{1}{N} \int_2^N \frac{dt}{\log t} = \frac{1}{\log N - 1} + O\left(\frac{1}{(\log N)^3}\right).$$
-
-In fact, the details leading to our prediction $F(H,m,\lambda)$ are unaffected if, instead of letting $\lambda = H/(\log N - 1)$, we let $\lambda = H/(\log N - 1 + \epsilon(N))$, where $\epsilon(N) \to 0$ rapidly enough. (This is also related to the reason why, if we let $\lambda^* = H/\log N$, which only approximates what we get from the logarithmic integral up to an error of $O(1/(\log N)^2)$, we get a different form for our prediction, which we are calling $F^*(H,m,\lambda^*)$.) That is, we can use better approximations than $1/(\log N - 1)$ to the density of primes close to $N$, but this does not affect the form of our prediction $F(H,m,\lambda)$, because $\epsilon(N)$ gets absorbed into our error terms. If we could work out or conjecture tertiary and higher order terms in our prediction $F(H,m,\lambda)$, this would become quite relevant and interesting. 
-
-Notwithstanding, we can still play around with $\lambda$ in our numerics. The prime number theorem suggests that if we are considering primes in intervals around $(N - M, N + M]$, we should take the density of primes (or "probability" of a random integer in the interval being prime) as 
-
-$$\frac{1}{2M} \int_{N - M}^{N + M} \frac{dt}{\log t}.$$
-
-Again, letting this be $\lambda/H$ doesn't affect the form of our prediction $F(H,m,\lambda)$. Below is an animated plot, where we chose $N$ so that the above with $M = 10^6$ is very close to $1/20$.
-
-![Animated distribution for intervals of length 100 about an N chosen so that the logarithmic-integral density over the window is very close to 1/20.](/images/li20_H_100.gif){fig-alt="Animation of the distribution of primes in intervals of length 100, the density parameter chosen via the logarithmic integral to be very close to one twentieth."}
-
-What we should really like to do is, instead of fixing $H$ and letting $\lambda = H/(\log N - 1)$ (or any of the alternatives above), and considering intervals close enough to $N$ that $\lambda$ remains more or less constant, is _fix_ $\lambda$, and let $H = \lambda \log n$ (say), where we are considering intervals of the form $(n, n + H]$. Then we'd have $\lambda/H = 1/\log n$, and this is what the prime number theorem (and Gauss) really say: the density of primes around an integer $n$ is $1/\log n$. Alas, for now, the argument leading to our prediction relies on the fact that $H$ is a fixed integer of size of order $\log N$.
+What we should really like to do is, instead of fixing $H$ and considering windows narrow enough that the density is more or less constant across them, _fix_ $\lambda$, and let $H = \lambda \log n$ (say), where we are considering intervals of the form $(n, n + H]$. Then we'd have $\lambda/H = 1/\log n$, and this is what the prime number theorem (and Gauss) really say: the density of primes around an integer $n$ is $1/\log n$. Alas, for now, the argument leading to our prediction relies on the fact that $H$ is a fixed integer of size of order $\log N$. The other natural experiment keeps $H$ fixed and lets the starting points run over the whole range $1 \le n \le N$, with the predictions $F$ and $F_0$ averaging over the changing density, exactly as they are defined; the command-line tools `pii cumulative-run`, `pii cumulative-frames`, `pii cumulative-plot` and `pii cumulative-animate` carry it out.

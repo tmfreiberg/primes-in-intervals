@@ -10,51 +10,70 @@ argument) holds one table per interval type:
 * ``prime_start_raw``
 
 Each table has columns ``lower_bound``, ``upper_bound``, ``interval_length``
-(together the primary key) followed by ``m0, m1, ..., m100``: the number of
+(together the primary key) followed by ``m0, m1, ..., mK``: the number of
 intervals ``(a, a + H]`` with ``a`` in ``(lower_bound, upper_bound]`` (``a``
 in an arithmetic progression mod ``H`` in the disjoint case, ``a`` prime in
-the prime-start case) containing exactly ``m`` primes.  The cap
-:data:`max_primes` = 100 comfortably covers every computation in the project;
-raise it (and alter the tables) if that ever changes.
+the prime-start case) containing exactly ``m`` primes.  New tables are created
+with ``K`` = :data:`max_primes` = 100.  A dataset that needs a larger ``m``
+does not lose anything: :func:`save` widens the table with further ``mK``
+columns (default 0) before writing, and :func:`retrieve` and
+:func:`show_table` read whatever columns a table has.
 
 So ``lower_bound``, ``upper_bound``, ``interval_length``, ``m0``, ...,
-``m100`` are columns ``0, 1, 2, 3, ..., 103`` respectively: ``mi`` is column
+``mK`` are columns ``0, 1, 2, 3, ..., K + 3`` respectively: ``mi`` is column
 ``i + 3``.
 
 A dataset's checkpoint rows share their ``lower_bound``; :func:`save` writes
-one row per checkpoint (``INSERT OR IGNORE``, so re-saving is harmless), and
-:func:`retrieve` groups rows by ``lower_bound`` to reconstruct the original
-meta-dictionaries.
+one row per checkpoint, and :func:`retrieve` groups rows by ``lower_bound``
+to reconstruct the original meta-dictionaries.
 
-Unlike the original script, importing this module does not touch the
-filesystem; tables are created on first use by :func:`save` (or explicitly by
-:func:`ensure_tables`), and every function accepts a ``db_path`` argument,
-defaulting to :data:`DB_PATH`, which can be changed globally with
-:func:`set_db`.
+**Conflicts.**  A row whose key ``(lower_bound, upper_bound,
+interval_length)`` is already present is compared with the stored row.  If
+the counts agree the row is skipped (re-saving is harmless); if they differ
+the disagreement is a *conflict*, and :func:`save` reports it rather than
+silently keeping either version: by default it raises
+:class:`StorageConflictError` and writes nothing, and it can instead skip or
+replace the conflicting rows when told to.
+
+**Provenance.**  Every row written by :func:`save` gets a companion entry in
+the ``provenance`` table recording the table, the key, the counter and its
+version (:data:`~primes_in_intervals.intervals.COUNTER_VERSION`), the package
+version, a timestamp, and a free-text note.  Rows saved before this table
+existed have no entry; :func:`provenance_of` lists what is known.
+
+Importing this module does not touch the filesystem; tables are created on
+first use by :func:`save` (or explicitly by :func:`ensure_tables`), and every
+function accepts a ``db_path`` argument, defaulting to :data:`DB_PATH`, which
+can be changed globally with :func:`set_db`.
 """
 
 from __future__ import annotations
 
 import os
 import sqlite3
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from primes_in_intervals.intervals import Dataset, zeros
+from primes_in_intervals.intervals import COUNTER_VERSION, Dataset, zeros
 
 __all__ = [
     "DB_PATH",
+    "StorageConflictError",
     "ensure_tables",
     "max_primes",
+    "provenance_of",
     "retrieve",
     "save",
     "set_db",
     "show_table",
+    "table_width",
 ]
 
-#: Largest per-interval prime count stored (columns ``m0`` .. ``m{max_primes}``).
+#: Largest per-interval prime count in a freshly created table (columns
+#: ``m0`` .. ``m{max_primes}``); tables grow beyond this on demand.
 max_primes = 100
 
 #: Default database location: ``data/primes_in_intervals_db``, resolved
@@ -94,6 +113,33 @@ _CAPTION = {
         r"\pi(p + H) - \pi(p) = m \}$, $p$ prime."
     ),
 }
+
+_PROVENANCE_TABLE = "provenance"
+
+
+class StorageConflictError(ValueError):
+    """Raised by :func:`save` when stored counts disagree with the counts being saved.
+
+    Attributes
+    ----------
+    conflicts : list of dict
+        One entry per conflicting row with keys ``'key'`` (the
+        ``(lower_bound, upper_bound, interval_length)`` triple),
+        ``'stored'`` and ``'new'`` (``{m: count}`` dictionaries of the
+        differing entries only).
+    """
+
+    def __init__(self, table: str, conflicts: list[dict[str, Any]]):
+        self.table = table
+        self.conflicts = conflicts
+        keys = ", ".join(str(c["key"]) for c in conflicts[:5])
+        more = "" if len(conflicts) <= 5 else f" and {len(conflicts) - 5} more"
+        super().__init__(
+            f"{len(conflicts)} row(s) of {table} already hold different counts "
+            f"(keys {keys}{more}); nothing was written. Inspect them, then call "
+            "save(..., on_conflict='skip') to keep the stored rows or "
+            "on_conflict='replace' to overwrite them."
+        )
 
 
 def _resolve(db_path: str | Path | None) -> str:
@@ -138,53 +184,128 @@ def set_db(db_path: str | Path) -> Path:
     return _DB_OVERRIDE
 
 
-def ensure_tables(db_path: str | Path | None = None) -> None:
-    """Create the three raw tables if they do not already exist.
+def _count_columns(width: int) -> str:
+    """Return ``'m0 int, m1 int, ..., m{width} int, '``."""
+    return "".join(f"m{i} int, " for i in range(width + 1))
 
-    The schema is exactly the original project's: three integer key columns
-    forming the primary key, then ``m0`` through ``m{max_primes}``.
+
+def _table_exists(conn: sqlite3.Connection, table: str) -> bool:
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
+    ).fetchone()
+    return row is not None
+
+
+def _width(conn: sqlite3.Connection, table: str) -> int:
+    """Return the largest ``K`` such that column ``mK`` exists in ``table``."""
+    cols = [r[1] for r in conn.execute(f"PRAGMA table_info({table})")]
+    ms = [int(c[1:]) for c in cols if c.startswith("m") and c[1:].isdigit()]
+    return max(ms) if ms else -1
+
+
+def _widen(conn: sqlite3.Connection, table: str, new_width: int) -> int:
+    """Add columns ``m{K+1} .. m{new_width}`` (default 0) to ``table``; return columns added."""
+    current = _width(conn, table)
+    for i in range(current + 1, new_width + 1):
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN m{i} int DEFAULT 0")
+    return max(0, new_width - current)
+
+
+def table_width(interval_type: str, db_path: str | Path | None = None) -> int | None:
+    """Return the largest ``m`` a raw table can store, or ``None`` if the table is absent.
+
+    Parameters
+    ----------
+    interval_type : str
+        ``'disjoint'``, ``'overlap'``, or ``'prime_start'``.
+    db_path : str, Path, or None, optional
+        Database file; resolved as described in :func:`set_db`.
+
+    Returns
+    -------
+    int or None
+    """
+    if interval_type not in _TABLES:
+        return None
+    resolved = _resolve(db_path)
+    if not Path(resolved).exists():
+        return None
+    conn = sqlite3.connect(resolved)
+    try:
+        if not _table_exists(conn, _TABLES[interval_type]):
+            return None
+        return _width(conn, _TABLES[interval_type])
+    finally:
+        conn.close()
+
+
+def ensure_tables(db_path: str | Path | None = None, width: int = max_primes) -> None:
+    """Create the three raw tables if they do not exist.
+
+    The provenance table is created by :func:`save` the first time it has a
+    row to record, so re-saving data that is already stored leaves the
+    database file unchanged.
+
+    The raw schema is the original project's: three integer key columns
+    forming the primary key, then ``m0`` through ``m{width}``.
 
     Parameters
     ----------
     db_path : str, Path, or None, optional
         Database file; resolved as described in :func:`set_db`.
+    width : int, optional
+        Largest ``m`` column in a newly created raw table (default
+        :data:`max_primes`).  Existing tables are left as they are.
     """
     resolved = _resolve(db_path)
     # A fresh clone will not have the data/ directory yet; without this,
     # sqlite3 fails with an unhelpful "unable to open database file".
     Path(resolved).parent.mkdir(parents=True, exist_ok=True)
-    # Generate the string 'm0 int, m1 int, m2 int, ... '
-    cols = ""
-    for i in range(max_primes + 1):
-        cols = cols + "m" + f"{i}" + " int, "
+    cols = _count_columns(width)
     conn = sqlite3.connect(resolved)
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS disjoint_raw "
-        "(lower_bound int, upper_bound int, interval_length int," + cols
-        + "PRIMARY KEY(lower_bound, upper_bound, interval_length))"
-    )
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS overlap_raw "
-        "(lower_bound int, upper_bound int, interval_length int," + cols
-        + "PRIMARY KEY(lower_bound, upper_bound, interval_length))"
-    )
-    conn.execute(
-        "CREATE TABLE IF NOT EXISTS prime_start_raw "
-        "(lower_bound int, upper_bound int, interval_length int," + cols
-        + "PRIMARY KEY(lower_bound, upper_bound, interval_length))"
-    )
+    for table in _TABLES.values():
+        conn.execute(
+            f"CREATE TABLE IF NOT EXISTS {table} "
+            "(lower_bound int, upper_bound int, interval_length int,"
+            + cols
+            + "PRIMARY KEY(lower_bound, upper_bound, interval_length))"
+        )
     conn.commit()
     conn.close()
 
 
-def save(data: Dataset, db_path: str | Path | None = None) -> None:
+def _ensure_provenance_table(conn: sqlite3.Connection) -> None:
+    """Create the provenance table if absent (only when there is something to record)."""
+    conn.execute(
+        f"CREATE TABLE IF NOT EXISTS {_PROVENANCE_TABLE} "
+        "(table_name text, lower_bound int, upper_bound int, interval_length int, "
+        "counter text, counter_version text, package_version text, saved_at text, "
+        "note text, "
+        "PRIMARY KEY(table_name, lower_bound, upper_bound, interval_length))"
+    )
+
+
+def _row_counts(row: tuple, width: int) -> dict[int, int]:
+    """Return ``{m: count}`` for the nonzero entries of a stored row."""
+    return {m: row[m + 3] for m in range(width + 1) if row[m + 3]}
+
+
+def save(
+    data: Dataset,
+    db_path: str | Path | None = None,
+    on_conflict: str = "error",
+    note: str = "",
+) -> dict[str, Any] | None:
     """Store a dataset's checkpoint rows in the appropriate raw table.
 
     One row is inserted per checkpoint ``C[k]`` (``k >= 1``), of the form
-    ``(C[0], C[k], H, g(0), g(1), ..., g(max_primes))``, into the table named
-    by the dataset's ``'interval_type'``.  ``INSERT OR IGNORE`` is used, so
-    rows whose ``(lower_bound, upper_bound, interval_length)`` key already
-    exists are left untouched and re-saving a dataset is harmless.
+    ``(C[0], C[k], H, g(0), g(1), ..., g(K))``, into the table named by the
+    dataset's ``'interval_type'``, together with a provenance entry.  The
+    table is widened first if the dataset has counts at ``m`` beyond its
+    current last column, so no count is ever dropped.
+
+    Rows whose key already exists are compared with the stored counts:
+    identical rows are skipped, differing rows are conflicts.
 
     Parameters
     ----------
@@ -194,42 +315,200 @@ def save(data: Dataset, db_path: str | Path | None = None) -> None:
     db_path : str, Path, or None, optional
         Database file; defaults to :data:`DB_PATH`.  Tables are created if
         absent.
+    on_conflict : str, optional
+        ``'error'`` (default): raise :class:`StorageConflictError` and write
+        nothing; ``'skip'``: write the non-conflicting rows, keep the stored
+        versions of the conflicting ones, and report; ``'replace'``: write
+        everything, overwriting the conflicting rows, and report.
+    note : str, optional
+        Free text recorded in the provenance entries (what the run was for).
+
+    Returns
+    -------
+    dict or None
+        A summary with keys ``'table'``, ``'inserted'``, ``'identical'``,
+        ``'replaced'``, ``'conflicts'`` (list of the conflicting keys with the
+        differing counts), and ``'widened_to'`` (the table's last ``m``
+        column after the call); ``None`` (with a message) if there is no
+        data to save.
+
+    Raises
+    ------
+    StorageConflictError
+        With ``on_conflict='error'``, if any stored row disagrees.
+    ValueError
+        If ``on_conflict`` is not one of the three choices, or the interval
+        type is unknown.
     """
     if "data" not in data.keys():
         return print("No data to save. Check contents.")
+    if on_conflict not in ("error", "skip", "replace"):
+        raise ValueError("on_conflict must be 'error', 'skip', or 'replace'")
+    interval_type = data["header"]["interval_type"]
+    if interval_type not in _TABLES:
+        raise ValueError(f"unknown interval type {interval_type!r}")
+    table = _TABLES[interval_type]
     ensure_tables(db_path)
     C = list(data["data"].keys())
     H = data["header"]["interval_length"]
-    # We'll insert rows of the form C[0], C[k], H, g(0), g(1), ..., g(max_primes).
-    # Thus, there are max_primes + 4 columns total. For the SQL string...
-    qstring = ""
-    for _ in range(max_primes + 4):
-        qstring += "?,"
-    qstring = qstring[:-1]
+    # The padded key set is the union of every m with a nonzero count
+    # somewhere, so its maximum is the largest m that must be stored.
+    needed = max((max(data["data"][c].keys(), default=0) for c in C), default=0)
+
     conn = sqlite3.connect(_resolve(db_path))
-    for k in range(1, len(C)):
-        row = [0] * (max_primes + 4)
-        row[0], row[1], row[2] = C[0], C[k], H
-        for m in data["data"][C[k]].keys():
-            row[m + 3] = data["data"][C[k]][m]
-        if data["header"]["interval_type"] == "disjoint":
-            conn.executemany(
-                "INSERT OR IGNORE INTO disjoint_raw VALUES(" + qstring + ")",
-                [tuple(row)],
+    try:
+        widened = _widen(conn, table, needed)
+        if widened:
+            print(
+                f"note: {table} widened to hold counts up to m = {needed} "
+                f"({widened} column(s) added)"
             )
-        if data["header"]["interval_type"] == "overlap":
-            conn.executemany(
-                "INSERT OR IGNORE INTO overlap_raw VALUES(" + qstring + ")",
-                [tuple(row)],
+        width = _width(conn, table)
+        new_rows: list[tuple] = []
+        replace_rows: list[tuple] = []
+        identical = 0
+        conflicts: list[dict[str, Any]] = []
+        for k in range(1, len(C)):
+            row = [0] * (width + 4)
+            row[0], row[1], row[2] = C[0], C[k], H
+            for m, count in data["data"][C[k]].items():
+                row[m + 3] = count
+            stored = conn.execute(
+                f"SELECT * FROM {table} WHERE lower_bound=? AND upper_bound=? "  # noqa: S608
+                "AND interval_length=?",
+                (C[0], C[k], H),
+            ).fetchone()
+            if stored is None:
+                new_rows.append(tuple(row))
+                continue
+            old = _row_counts(stored, width)
+            new = {m: count for m, count in data["data"][C[k]].items() if count}
+            if old == new:
+                identical += 1
+                continue
+            differing = sorted(set(old) | set(new))
+            conflicts.append(
+                {
+                    "key": (C[0], C[k], H),
+                    "stored": {
+                        m: old.get(m, 0) for m in differing if old.get(m, 0) != new.get(m, 0)
+                    },
+                    "new": {m: new.get(m, 0) for m in differing if old.get(m, 0) != new.get(m, 0)},
+                }
             )
-        if data["header"]["interval_type"] == "prime_start":
+            replace_rows.append(tuple(row))
+        if conflicts and on_conflict == "error":
+            conn.rollback()
+            raise StorageConflictError(table, conflicts)
+        qstring = ",".join("?" * (width + 4))
+        conn.executemany(f"INSERT INTO {table} VALUES({qstring})", new_rows)  # noqa: S608
+        replaced = 0
+        if conflicts and on_conflict == "replace":
+            conn.executemany(f"INSERT OR REPLACE INTO {table} VALUES({qstring})", replace_rows)  # noqa: S608
+            replaced = len(replace_rows)
+        written = new_rows + (replace_rows if on_conflict == "replace" else [])
+        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        import primes_in_intervals
+
+        if written:
+            _ensure_provenance_table(conn)
             conn.executemany(
-                "INSERT OR IGNORE INTO prime_start_raw VALUES(" + qstring + ")",
-                [tuple(row)],
+                f"INSERT OR REPLACE INTO {_PROVENANCE_TABLE} VALUES(?,?,?,?,?,?,?,?,?)",
+                [
+                    (
+                        table,
+                        r[0],
+                        r[1],
+                        r[2],
+                        f"{interval_type}_cp",
+                        COUNTER_VERSION,
+                        primes_in_intervals.__version__,
+                        stamp,
+                        note,
+                    )
+                    for r in written
+                ],
             )
-    conn.commit()
-    conn.close()
-    return None
+        conn.commit()
+    finally:
+        conn.close()
+    if conflicts:
+        verb = "kept the stored versions of" if on_conflict == "skip" else "overwrote"
+        print(
+            f"warning: {len(conflicts)} row(s) of {table} held different counts; "
+            f"{verb} them (keys {[c['key'] for c in conflicts[:5]]}"
+            f"{'...' if len(conflicts) > 5 else ''})"
+        )
+    return {
+        "table": table,
+        "inserted": len(new_rows),
+        "identical": identical,
+        "replaced": replaced,
+        "conflicts": conflicts,
+        "widened_to": width,
+    }
+
+
+def provenance_of(
+    H: int | None = None,
+    interval_type: str | None = None,
+    db_path: str | Path | None = None,
+) -> Any:
+    """Return the provenance entries as a DataFrame, optionally filtered.
+
+    Parameters
+    ----------
+    H : int, optional
+        Restrict to this interval length.
+    interval_type : str, optional
+        Restrict to this interval type.
+    db_path : str, Path, or None, optional
+        Database file; defaults to :data:`DB_PATH`.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns ``table_name``, ``lower_bound``, ``upper_bound``,
+        ``interval_length``, ``counter``, ``counter_version``,
+        ``package_version``, ``saved_at``, ``note``; empty if the database or
+        the provenance table does not exist (rows saved before provenance was
+        recorded have no entry).
+    """
+    columns = [
+        "table_name",
+        "lower_bound",
+        "upper_bound",
+        "interval_length",
+        "counter",
+        "counter_version",
+        "package_version",
+        "saved_at",
+        "note",
+    ]
+    resolved = _resolve(db_path)
+    if not Path(resolved).exists():
+        return pd.DataFrame(columns=columns)
+    conn = sqlite3.connect(resolved)
+    try:
+        if not _table_exists(conn, _PROVENANCE_TABLE):
+            return pd.DataFrame(columns=columns)
+        clauses: list[str] = []
+        params: list[Any] = []
+        if H is not None:
+            clauses.append("interval_length = ?")
+            params.append(H)
+        if interval_type is not None:
+            clauses.append("table_name = ?")
+            params.append(_TABLES.get(interval_type, interval_type))
+        where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+        rows = conn.execute(
+            f"SELECT * FROM {_PROVENANCE_TABLE}{where} "  # noqa: S608
+            "ORDER BY table_name, interval_length, lower_bound, upper_bound",
+            params,
+        ).fetchall()
+    finally:
+        conn.close()
+    return pd.DataFrame(rows, columns=columns)
 
 
 def show_table(
@@ -254,7 +533,8 @@ def show_table(
     pandas.DataFrame or pandas Styler or None
         The table, ordered by ``lower_bound``, ``upper_bound``,
         ``interval_length``, with columns ``A``, ``B``, ``H``, ``0``, ...,
-        ``max_primes``; or ``None`` (with a message) if the table is absent.
+        ``K`` (``K`` the table's last ``m`` column); or ``None`` (with a
+        message) if the table is absent.
     """
     if interval_type not in _TABLES:
         return None
@@ -267,24 +547,19 @@ def show_table(
         print(_MISSING_TABLE_MESSAGE[interval_type])
         return None
     conn = sqlite3.connect(resolved)
-    c = conn.cursor()
-    existence_check = c.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
-    ).fetchall()
-    if existence_check == []:
+    if not _table_exists(conn, table):
         print(_MISSING_TABLE_MESSAGE[interval_type])
-        c.close()
         conn.close()
         return None
+    width = _width(conn, table)
     res = conn.execute(
         f"SELECT * FROM {table} "  # noqa: S608 - table name from fixed mapping
         "ORDER BY lower_bound ASC, upper_bound ASC, interval_length ASC"
     )
     rows = res.fetchall()
-    c.close()
     conn.close()
     cols: list[Any] = ["A", "B", "H"]
-    for m in range(0, max_primes + 1):
+    for m in range(0, width + 1):
         cols.append(m)
     df = pd.DataFrame(rows, columns=cols)
     if description == "no description":
@@ -301,7 +576,7 @@ def retrieve(
     """Reconstruct the dataset(s) with interval length ``H`` from the database.
 
     Rows are grouped by ``lower_bound``: each group of rows
-    ``(A, C[k], H, g(0), ..., g(max_primes))`` becomes one meta-dictionary with
+    ``(A, C[k], H, g(0), ..., g(K))`` becomes one meta-dictionary with
     the usual ``'header'`` and a ``'data'`` item mapping each checkpoint to its
     frequency dictionary (zero-count keys re-trimmed by
     :func:`~primes_in_intervals.intervals.zeros`, exactly as when the data was
@@ -334,24 +609,19 @@ def retrieve(
         print(_MISSING_TABLE_MESSAGE[interval_type])
         return None
     conn = sqlite3.connect(resolved)
-    c = conn.cursor()
-    existence_check = c.execute(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table,)
-    ).fetchall()
-    if existence_check == []:
+    if not _table_exists(conn, table):
         print(_MISSING_TABLE_MESSAGE[interval_type])
-        c.close()
         conn.close()
         return None
+    width = _width(conn, table)
     res = conn.execute(
         f"SELECT * FROM {table} "  # noqa: S608 - table name from fixed mapping
         "WHERE (interval_length) = (?) ORDER BY lower_bound ASC, upper_bound ASC",
         (H,),
     )
     rows = res.fetchall()
-    # rows = [(C[0], C[k], H, g(0), ..., g(100)), k = 0,1,...),
-    #         (C'[0], C'[k], H, g(0), ..., g(100)), k = 0,1,...), ...]
-    c.close()
+    # rows = [(C[0], C[k], H, g(0), ..., g(K)), k = 0,1,...),
+    #         (C'[0], C'[k], H, g(0), ..., g(K)), k = 0,1,...), ...]
     conn.close()
     found: dict[int, dict[int, dict[int, int]]] = {}
     i = 0
@@ -361,7 +631,7 @@ def retrieve(
         j = i
         while j < len(rows) and rows[j][0] == A:
             B = rows[j][1]
-            found[A][B] = {m - 3: rows[j][m] for m in range(3, max_primes + 4)}
+            found[A][B] = {m - 3: rows[j][m] for m in range(3, width + 4)}
             j += 1
         i = j
     output = []

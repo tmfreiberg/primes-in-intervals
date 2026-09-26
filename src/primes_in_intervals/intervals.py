@@ -42,6 +42,7 @@ from typing import Any
 from primes_in_intervals.sieve import postponed_sieve
 
 __all__ = [
+    "COUNTER_VERSION",
     "anyIntervals",
     "anyIntervals_cp",
     "disjoint",
@@ -57,6 +58,11 @@ __all__ = [
 
 MetaDict = dict[Any, dict[int, int]]
 Dataset = dict[str, Any]
+
+#: Version tag of the counting implementations in this module, recorded by
+#: :func:`primes_in_intervals.dataio.save` alongside every stored row.  Bump
+#: it whenever the arithmetic of a counter changes.
+COUNTER_VERSION = "intervals-2026-09-26 (sliding window; validated against reference.py)"
 
 
 def zeros(meta_dictionary: MetaDict, pad: str = "yes") -> MetaDict:
@@ -343,12 +349,16 @@ def overlap_cp(C: list[int], H: int) -> Dataset:
     each checkpoint boundary the closing loop truncates the current jump, a
     snapshot of the running counts is stored, and the sweep resumes.
 
-    Note that ``C`` is sorted in place.
+    Note that ``C`` is sorted and deduplicated in place, and that the header
+    describes the sorted, deduplicated list: ``'lower_bound'`` is its least
+    element, ``'upper_bound'`` its greatest, and ``'no_of_checkpoints'`` the
+    number of distinct checkpoints, which is also the number of keys of the
+    ``'data'`` item.
 
     Parameters
     ----------
     C : list of int
-        Checkpoints.  Sorted in place.
+        Checkpoints.  Sorted and deduplicated in place.
     H : int
         Interval (window) length.
 
@@ -360,6 +370,9 @@ def overlap_cp(C: list[int], H: int) -> Dataset:
         mapping each checkpoint to its cumulative frequency dictionary, padded
         to a common key set by :func:`zeros`.
     """
+    # Sort and deduplicate before the header is built, so that the recorded
+    # bounds and checkpoint count describe the list that is actually swept.
+    C[:] = sorted(set(C))
     output: Dataset = {
         "header": {
             "interval_type": "overlap",
@@ -370,7 +383,6 @@ def overlap_cp(C: list[int], H: int) -> Dataset:
             "contents": [],
         }
     }
-    C.sort()
     data: MetaDict = {C[0]: {m: 0 for m in range(H + 1)}}
     P = postponed_sieve()
     Q = postponed_sieve()
@@ -481,15 +493,16 @@ def prime_start_cp(C: list[int], H: int) -> Dataset:
     The output's ``'data'`` item maps each checkpoint ``C[k]`` to the frequency
     dictionary of ``prime_start(C[0], C[k], H)``, computed in a single pass.
 
-    Note that ``C`` is sorted in place, and that the loop's first iteration
-    (``i = 0``) pairs ``C[-1]`` with ``C[0]``; since the prime supply has
-    already been advanced past ``C[0]``, that iteration counts nothing and
-    records the all-zero dictionary at ``C[0]``, exactly as intended.
+    Note that ``C`` is sorted and deduplicated in place, and that the loop's
+    first iteration (``i = 0``) pairs ``C[-1]`` with ``C[0]``; since the prime
+    supply has already been advanced past ``C[0]``, that iteration counts
+    nothing and records the all-zero dictionary at ``C[0]``, exactly as
+    intended.
 
     Parameters
     ----------
     C : list of int
-        Checkpoints.  Sorted in place.
+        Checkpoints.  Sorted and deduplicated in place.
     H : int
         Interval length.
 
@@ -501,7 +514,7 @@ def prime_start_cp(C: list[int], H: int) -> Dataset:
         a ``'data'`` item mapping each checkpoint to its cumulative frequency
         dictionary, padded to a common key set by :func:`zeros`.
     """
-    C.sort()
+    C[:] = sorted(set(C))
     P = postponed_sieve()
     Q = postponed_sieve()
     p = next(P)

@@ -1,6 +1,12 @@
 # Plot & animate {#sec-plot}
 
-A picture is where the bias becomes visible. The plotting code lives in `src/primes_in_intervals/plotting.py` (`pii plot` and `pii animate` from the shell), and the heart of it is one function, `plot_distribution_frame`, which draws a single checkpoint's distribution onto an axis: the data as translucent bars (with a red dot on top of each), the Binomial prediction as a dashed orange curve, and, for overlapping intervals, the prediction $F$ as a dashed green curve, the smooth curves being exactly why the prediction functions accept real $m$. A text box overlays the parameters and the summary statistics of the frame, the legend sits in the upper left, and a grid is drawn underneath everything else. The axis is cleared first, so the same function serves as the frame function of an animation: `animate_distribution` runs it across the checkpoints (skipping the trivial first one), holding the axes fixed so the frames are comparable, and returns the figure and the animation; `save_gif` and `save_mp4` write the result to a file.
+A picture is where the bias becomes visible. The plotting code lives in `src/primes_in_intervals/plotting.py` (`pii plot` and `pii animate` from the shell), and the heart of it is one function, `plot_distribution_frame`, which draws a single checkpoint's distribution onto an axis.
+
+The data are drawn as translucent bars, with a red dot on top of each. The predictions of @sec-compare are drawn as markers at the integers $m$, each model with its own colour and marker: by default $F$ (green squares), $F_0$ (blue triangles) and $\mathrm{Binom}(H, \mu/H)$ (orange diamonds) for overlapping intervals, and only the Binomial for the other interval types, since $F$ and $F_0$ were derived for overlapping intervals. The argument `models` chooses others, including the local expressions $Q(m; \mu, H)$ and $Q(m; \lambda, H)$. The predictions are those for the checkpoint's own range of starting points ($M = A$ and $N = c - A$ for a checkpoint $c$ of a dataset with lower bound $A$), computed by the same `predict_all` that `compare` uses, so a plot and a table can never disagree.
+
+Only the integers $m$ carry a meaning, which is why the predictions are markers. A dashed guide curve runs through each set of markers to help the eye; it interpolates $m!$ by the gamma function and means nothing between the integers (pass `guides=False` to leave it out). When a prediction is negative, which $F$ is in the tails, the vertical axis extends below zero and the least value is noted in the corner, rather than being cut off at zero.
+
+A text box shows the parameters and the summary statistics of the frame, including $\mu$ and $\lambda$; the legend sits in the upper left, and a grid is drawn underneath everything else. The axis is cleared first, so the same function serves as the frame function of an animation: `animate_distribution` runs it across the checkpoints (skipping the trivial first one), holding the axes fixed so the frames are comparable, and returns the figure and the animation; `save_gif` and `save_mp4` write the result to a file.
 
 Every chapter runs in its own session; the folded cells below rebuild the running datasets of @sec-raw_data and apply `analyze` to each, which is all the plots need.
 
@@ -8,7 +14,7 @@ Every chapter runs in its own session; the folded cells below rebuild the runnin
 
 ### Example 1 {#sec-eg1plot}
 
-The final frame for the overlapping intervals of Example 1: a hundred intervals' worth of data between two and three million, $H = 100$.
+The final frame for the overlapping intervals of Example 1: a million intervals $(a, a + 100]$, with $a$ between two and three million.
 
 ```{python}
 import matplotlib.pyplot as plt
@@ -26,45 +32,37 @@ plt.rcParams['savefig.facecolor'] = 'white'
 plt.show()
 ```
 
-The distribution hugs its center more tightly than the Binomial curve allows, and the green curve follows it: the bias of the book's title, on real data.
+The distribution is more concentrated about its centre than either $F_0$ or the Binomial allows, and the green squares of $F$ follow it much more closely: the bias of the book's title, on real data.
 
 ### Example 2 {#sec-eg2plot}
 
-The final frame for Example 2's overlapping intervals about $e^{18}$, $H = 85$. This frame's text box, as in the original figure, states the range in its centered form, $N - M < a \le N + M$ with $N = [\exp(18)]$, so we pass the overlay as a literal string.
+The final frame for Example 2's overlapping intervals about $e^{18}$, $H = 85$. This time we write our own text box, describing the range as a window centred at $x_0 = [e^{18}]$. The argument `overlay` accepts a function, which receives the dataset, the checkpoint, $H$, and the predictions being drawn, and returns the text; that way the box can quote $\mu$ from the very predictions on the plot.
 
 ```{python}
 import numpy as np
 
 X = retrieve_data2olap
-A = X['header']['lower_bound']
-H = X['header']['interval_length']
 C = list(X['distribution'].keys())
-B = C[-1]
+x0 = int(np.exp(18))
 
-N = (A + B)/2
-p = 1/(np.log(N) - 1)
-mu = X['statistics'][B]['mean']
-sigma = X['statistics'][B]['var']
-med = X['statistics'][B]['med']
-if med == int(med):
-    med = int(med)
-modes = X['statistics'][B]['mode']
-
-overlay_text = (fr'$X = \pi(a + H) - \pi(a)$' + '\n\n'
-                + fr'$N - M < a \leq N + M$' + '\n\n'
-                + fr'$H = {H}$' + '\n\n'
-                + fr'$N = [\exp(18)]$' + '\n\n'
-                + fr'$M = {B - int(np.exp(18))}$' + '\n\n'
-                + fr'$\lambda = H/(\log N - 1) = {H*p:.5f}$' + '\n\n'
-                + r'$\mathbb{E}[X] = $' + f'{mu:.5f}' + '\n\n'
-                + r'$\mathrm{Var}(X) = $' + f'{sigma:.5f}' + '\n\n'
-                + fr'median : ${med}$' + '\n\n'
-                + fr'mode(s): ${modes}$')
+def centred_overlay(X, c, H, pred):
+    s = X['statistics'][c]
+    med = int(s['med']) if s['med'] == int(s['med']) else s['med']
+    return (fr'$X = \pi(a + H) - \pi(a)$' + '\n\n'
+            + fr'$x_0 - K < a \leq x_0 + K$' + '\n\n'
+            + fr'$H = {H}$, $x_0 = [\exp(18)]$, $K = {c - x0}$' + '\n\n'
+            + fr'$\mu = {pred["mu"]:.5f}$' + '\n\n'
+            + r'$\mathbb{E}[X] = $' + f"{s['mean']:.5f}" + '\n\n'
+            + r'$\mathrm{Var}(X) = $' + f"{s['var']:.5f}" + '\n\n'
+            + fr'median : ${med}$' + '\n\n'
+            + fr"mode(s): ${s['mode']}$")
 
 fig, ax = plt.subplots(figsize=(22, 11))
 fig.suptitle('Primes in intervals')
-plot_distribution_frame(ax, X, B, overlay=overlay_text, overlay_position=(0.74, 0.18))
+plot_distribution_frame(ax, X, C[-1], overlay=centred_overlay, overlay_position=(0.74, 0.18))
 plt.show()
 ```
+
+The window is narrow and far from the origin, so the density of primes hardly changes across it: $\mu$ is $85/18$ to five decimal places.
 
 The full animations step through every checkpoint of these figures, the sample growing frame by frame; they are produced with `animate_distribution` followed by `save_gif` or `save_mp4`, or in one line from the shell with `pii animate`. The worked examples to come lean on them.
