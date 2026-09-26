@@ -1,86 +1,158 @@
 # Compare {#sec-compare}
 
-Let's work out how many intervals in a range should contain a given number of primes, according to Cramér's model,
-and according to our prediction. In place of the actual number, we'll place a quadruple with the actual number, Cramér's prediction, our preferred prediction ($F$), and our alternate prediction ($F^*$).
+How many intervals in a range should contain a given number of primes? This chapter sets out the predictions we test, shows how they are computed, and attaches them to the datasets of the previous chapters. At each checkpoint and for each number of primes $m$ we record the actual proportion alongside three predictions: the Binomial distribution of Cramér's model, our corrected prediction $F$, and its uncorrected counterpart $F_0$. We then measure how far each prediction is from the data.
 
-Below, ```frei``` is the function 
+## The predictions {#sec-predictions}
 
-$$F(H,m,\lambda) = \frac{e^{-\lambda}\lambda^m}{m!}\left[1 + \frac{\log H + (\log 2\pi + \gamma - 1)}{H}\cdot \frac{m - (m - \lambda)^2}{2} \right].$$
+A word on notation first. Elsewhere in the book, and in much of the literature on the subject, a window of starting points is written $N - M < a \le N + M$, centred at $N$. Here we switch to the notation of the paper: the starting points run over
+$$
+M < n \le M + N,
+$$
+so $M$ is the left end of the range and $N$ is the number of starting points. For a checkpoint $c$ of a dataset with lower bound $A$, the data at $c$ describe the starting points $A < a \le c$, so $M = A$ and $N = c - A$. For a nested interval $(c_0, c_1]$, $M = c_0$ and $N = c_1 - c_0$. The quantity we want to predict is
+$$
+P(m; H, M, N) = \frac{1}{N}\#\{M < n \le M + N : \pi(n + H) - \pi(n) = m\}.
+$$
 
-and ```frei_alt``` is the function
+The building blocks are the Poisson probability and the constant $\eta(H)$ that governs the size of the correction:
+$$
+p_m(u) = \frac{e^{-u}u^m}{m!},
+\qquad
+\eta(H) = \frac{\log H + \log 2\pi + \gamma - 1}{H},
+$$
+where $\gamma$ is the Euler-Mascheroni constant. The **local corrected expression** is
+$$
+Q(m; u, H) = p_m(u)\left[1 - \frac{\eta(H)}{2}\big((m - u)^2 - m\big)\right].
+$$
+For every $u$, $Q(m; u, H)$ sums to one over $m \ge 0$, since the polynomial $(m - u)^2 - m$ has mean zero under the Poisson distribution with parameter $u$. It is not a probability distribution, however: it is negative for $m$ far enough from $u$, because the correction eventually outweighs the leading term.
 
-$$F^*(H,m,\lambda^*) = \frac{e^{-\lambda^*}(\lambda^*)^m}{m!}\left[1 + \frac{\lambda^*}{H}(m - \lambda^*) + \frac{\log H + (\log 2\pi + \gamma - 1)}{H}\cdot \frac{m - (m - \lambda^*)^2}{2} \right].$$
+The density of primes near $t$ is $1/\log t$, so an interval of length $H$ starting near $t$ contains $H/\log t$ primes on average. Our prediction averages the local expression over the range:
+$$
+F(m; H, M, N) = \frac{1}{N}\int_{\max(2, M)}^{M + N} Q\left(m; \frac{H}{\log t}, H\right)dt,
+$$
+and the same average of the Poisson term alone is
+$$
+F_0(m; H, M, N) = \frac{1}{N}\int_{\max(2, M)}^{M + N} p_m\left(\frac{H}{\log t}\right)dt.
+$$
+The two differ only by the arithmetic correction, and they treat the variation of the density across the range identically. Comparing $F$ with $F_0$ therefore isolates the effect of the correction, which is the point of the whole exercise.
 
-We use $F$ with $\lambda = H/(\log N - 1)$ and $F^*$ with $\lambda^* = H/\log N$, $\lambda/H$ (or $\lambda^*/H$) representing the "probability" of an integer very close to $N$ being prime.
+Two single-parameter summaries of the range are useful as well. The **averaged parameter**
+$$
+\mu = \frac{H}{N}\int_{\max(2, M)}^{M + N}\frac{dt}{\log t}
+$$
+is $H$ times the average density of primes over the range. The **shifted parameter**
+$$
+\lambda = \frac{H}{\log N + c(M/N)},
+\qquad
+c(\alpha) = (\alpha + 1)\log(\alpha + 1) - \alpha\log\alpha - 1 \quad (0\log 0 = 0),
+$$
+is $H$ divided by the average of $\log t$ over the range. When $M = 0$, $c(0) = -1$ and $\lambda = H/(\log N - 1)$, the parameter of the paper's main statement. For a narrow window far from the origin ($M/N$ large), $c(M/N) = \log(M/N + 1/2) + O((N/M)^2)$, so $\log N + c(M/N)$ is essentially the logarithm of the window's midpoint, with no $-1$. The $-1$ belongs to the average over all the integers up to $N$, not to the density near $N$.
 
-We're comparing these against the prediction based on $$\mathrm{Binom}(H,\lambda/H).$$
+Finally, Cramér's model with a constant density gives the Binomial distribution $\mathrm{Binom}(H, \mu/H)$: each of the $H$ integers in an interval is prime independently with probability $\mu/H$. Cramér's model proper assigns the probability $1/\log n$ to the integer $n$, so the count in an interval is not exactly Binomial; the constant-density version is the natural approximation to it, and it is the one we use.
 
-NB: $F$ and $F^*$ apply to the case of overlapping intervals only at this point. The details of the case of disjoint intervals and prime-starting intervals have not been worked out yet, and it may well be that different second-order terms arise in the disjoint/prime-starting case. Therefore, in the case of disjoint/prime-starting intervals, comparisons with estimates arising from $F$ and $F^*$ should be taken with a grain of salt.
+Some bookkeeping. $F$ and $F_0$ are integrals over $[\max(2, M), M + N]$ divided by $N$, so their total over all $m \ge 0$ is
+$$
+\frac{M + N - \max(2, M)}{N},
+$$
+which is $1$ when $M \ge 2$ and $1 - 2/N$ when $M = 0$. The deficit is part of the formula, and nothing below renormalizes it away. $F$, like $Q$, can be negative, and nothing below hides that either.
+
+## Computing them {#sec-computing-predictions}
+
+Every formula above lives in `src/primes_in_intervals/predictions.py`. The local pieces are short:
+
+```python
+def eta(H):
+    return (math.log(H) + math.log(2*math.pi) + EULER_GAMMA - 1)/H
+
+def poisson_pmf(m, u):
+    return np.exp(m*math.log(u) - u - gammaln(m + 1))
+
+def local_corrected(m, u, H):
+    return poisson_pmf(m, u)*(1 - eta(H)/2*((m - u)**2 - m))
+```
+
+Computing the Poisson probability through the logarithm of the gamma function keeps it accurate far into the tails, and lets $m$ be real, which is what the smooth guide curves in the plots use. (The older name `frei(H, m, t)` is still available, and is `local_corrected` with its arguments reordered.)
+
+The integrals are the interesting part. The range $[\max(2, M), M + N]$ can be billions of integers long, but the integrand depends on $t$ only through $\log t$. So the integral is taken over $\sigma = \log(t/\max(2, M))$, a range only about $\log N$ units long on which the integrand is smooth, and every $m$ is handled at once by vector-valued adaptive quadrature. The Poisson part and the correction are integrated side by side, from one stacked integrand:
+
+```python
+def integrand(t):
+    u = H/math.log(t)
+    p = poisson_pmf(m, u)                    # a vector over m
+    corr = -(eta(H)/2)*((m - u)**2 - m)*p
+    return np.concatenate([p, corr])
+```
+
+The first half of the result is $F_0$; the second half is $F - F_0$, integrated directly rather than obtained by subtracting two nearly equal numbers, and $F$ is their sum. The quadrature code is in `src/primes_in_intervals/quadrature.py`. Its tolerances are explicit and its error estimate is recorded with every result. An integrator's error estimate is a heuristic, not a bound, so the results have also been checked against an independent 30-digit evaluation with mpmath (`pii quadrature-check H M N` from the shell), and they agree to about $10^{-16}$.
+
+The parameter $\mu$ needs no quadrature: $\int dt/\log t$ is the logarithmic integral, available in closed form through the exponential integral.
+
+The function that the rest of the package calls is `predict_all(H, M, N, m_max, models)`. It evaluates the requested models at the integers $m = 0, 1, \ldots, m_{\max}$, and returns them together with $\mu$, $\lambda$, the quadrature diagnostics, and a check of which models make sense at the given parameters. The comparisons, the plots and the animations all go through it, so no two of them can evaluate a formula differently. Here are the predictions for the overlapping intervals of Example 1 ($H = 100$, starting points between two and three million):
+
+```{python}
+import pandas as pd
+import primes_in_intervals as pii
+
+pred = pii.predict_all(100, 2*10**6, 10**6, 14, models=("F", "F0", "B_const", "Q_mu"))
+print(f"eta(100) = {pii.eta(100):.6f}, mu = {pred['mu']:.6f}, lambda = {pred['lambda']:.6f}")
+print(f"quadrature error estimate: {pred['quadrature']['error']:.1e}")
+pd.DataFrame({name: pred[name] for name in ("F", "F0", "correction", "B_const", "Q_mu")},
+             index=pd.Index(pred["m"], name="m"))
+```
+
+The column `correction` is $F - F_0$. Two things are worth noticing. First, $\mu$ and $\lambda$ agree to three decimals, as they should for a window whose width is small compared with its distance from the origin. Second, the old convention in this book, taking the density near the midpoint $2.5$ million to be $1/(\log(2.5\times 10^6) - 1)$, gave the parameter $7.28$, far from the correct $6.79$: the $-1$ does not belong there.
+
+`B_const` is $\mathrm{Binom}(H, \mu/H)$ and `Q_mu` is $Q(m; \mu, H)$, the local expression evaluated at the single averaged parameter. Over a narrow window like this one the density hardly varies, and $F$ and $Q(m; \mu, H)$ are very close.
+
+## Attaching the comparisons {#sec-attaching-comparisons}
 
 Every chapter runs in its own session; the folded cells below rebuild the running datasets of @sec-raw_data from the database and apply `analyze` to each of them, reproducing the state at the end of @sec-analyze.
 
 {{< include _setup_analyzed.qmd >}}
 
-The prediction functions live in `src/primes_in_intervals/predictions.py` (from the shell: `pii binom-pmf`, `pii frei`, `pii frei-alt`, `pii ms`). In compact form:
-
-```python
-import numpy as np
-from scipy.special import binom, gamma
-import sympy
-
-# The "Montgomery-Soundararajan" constant 1 - gamma - log(2*pi).
-MS = 1 - sympy.EulerGamma.evalf() - np.log(2*(np.pi))
-
-def binom_pmf(H,m, p):
-    return binom(H,m)*(p**m)*(1 - p)**(H - m)
-
-def frei(H,m,t):
-    Q_2 = ((m - t)**2 - m)/2
-    return np.exp(-t)*(t**m/gamma(m + 1))*(1 - ((np.log(H) - MS)/(H))*Q_2)
-
-def frei_alt(H,m,t):
-    Q_1 = m - t
-    Q_2 = ((m - t)**2 - m)/2
-    return np.exp(-t)*(t**m/gamma(m + 1))*(1 + (t/H)*Q_1 - ((np.log(H) - MS)/(H))*Q_2)
-```
-
-Since `MS` is $1 - \gamma - \log 2\pi$, the factor `1 - ((np.log(H) - MS)/(H))*Q_2` in `frei` is exactly the bracket in the definition of $F$, with the signs absorbed into `Q_2`; likewise for `frei_alt`. Note also that `binom(H,m)` and `gamma(m + 1)` come from SciPy, so all three functions accept real $m$, which is what lets them be drawn as smooth curves in the plots to come. The constant, numerically:
-
-```{python}
-from primes_in_intervals import MS, compare
-
-float(MS)
-```
-
-The comparison itself is `compare`, in `src/primes_in_intervals/comparisons.py` (`pii compare`). It modifies a dataset in place, adding a `'comparison'` item keyed exactly as the data is, and it requires the dataset to have been analyzed first, since the quadruples include the observed relative frequencies. For each checkpoint $c$ of a flat dataset, or each pair $c = (c_0, c_1]$ of a nested one, it works as follows. Take $N$ to be the midpoint of the range, and set $p = 1/(\log N - 1)$, the more accurate estimate for the density of primes around the range, and $p^* = 1/\log N$. The number of intervals under consideration, the multiplier, depends on the interval type: the width of the range for overlapping intervals, the width divided by $H$ for disjoint intervals, and the total count of intervals recorded (the number of primes in the range) for prime-starting intervals. Then, for each $m$, the three probabilities $\mathrm{Binom}(H, p)$ at $m$, $F(H, m, Hp)$, and $F^*(H, m, Hp^*)$ are computed, and each is multiplied by the multiplier and truncated to an integer to give a predicted count. The comparison entry at $m$ is the pair of quadruples
+The comparison itself is `compare`, in `src/primes_in_intervals/comparisons.py` (`pii compare` from the shell). It modifies a dataset in place, and requires the dataset to have been analyzed first, since it uses the observed relative frequencies. For each checkpoint $c$ (or nested interval $c = (c_0, c_1]$) it determines $M$ and $N$ as described above, and the number of intervals sampled: $N$ for overlapping intervals, $N/H$ (rounded down) for disjoint intervals, and the number of primes in the range for prime-starting intervals. Then, for every integer $m$ from $0$ up to the largest count observed anywhere in the dataset, the `'comparison'` item receives the pair
 
 ```
-(observed frequency, Binomial probability, F probability, F* probability),
-(observed count,     Binomial prediction,  F prediction,  F* prediction)
+(observed frequency, Binomial probability, F probability, F0 probability),
+(observed count,     Binomial count,       F count,       F0 count)
 ```
 
-and the header's `'contents'` gains the item `'comparison - actual, binomial, frei, frei_alt'`, naming the order once and for all. For a flat dataset the trivial first checkpoint's entries are all zero, for consistency with the keys.
+where each predicted count is the predicted probability times the number of intervals, left unrounded. An $m$ that does not occur at a particular checkpoint still gets its entry, with an observed count of zero, because a prediction that puts mass where there is none is wrong there. The parameters used at each checkpoint ($M$, $N$, the number of intervals, $\mu$, $\lambda$, the quadrature diagnostics) are kept in a `'prediction_parameters'` item, and the header's `'contents'` gains `'comparison - actual, binomial, F, F0'`, naming the order once and for all.
 
-We might also like to know which of the predictions fit the data best. But what do we mean by "best"? We mean the prediction $\mathrm{pred}$ for which 
+A caution about the other interval types. $F$ and $F_0$ were derived for overlapping intervals. Disjoint intervals sample every $H$-th starting point and prime-starting intervals sample only primes, and their second-order terms may well differ. `compare` computes the same predictions for all three types, so the disjoint and prime-starting comparisons below should be read with that in mind.
 
-$$\sum_m (h(m) - \mathrm{pred}(m))^2$$
+## Measuring the discrepancy {#sec-discrepancy}
 
-is the smallest. We'll just sum over $m$ in the smallest range of consecutive integers outside of which $h(m)$ is zero for every set of intervals in the dataset. Within that range, $h(m)$ may still be zero for a particular set of intervals, and those terms are included in the sum. (Recall that $h(m)$ is the number of overlapping intervals considered that contain exactly $m$ primes. For disjoint intervals, replace $h(m)$ by $g(m)$.)
+Which prediction is closest to the data, and by how much? With $P_m$ the observed proportion of intervals containing $m$ primes and $q_m$ a prediction, we use three measures:
+$$
+E_1(q) = \sum_m |P_m - q_m|,
+\qquad
+E_2(q) = \Big(\sum_m (P_m - q_m)^2\Big)^{1/2},
+\qquad
+E_\infty(q) = \max_m |P_m - q_m|.
+$$
+The sums run over an explicitly stated range of consecutive integers $m$, including the values of $m$ at which nothing was observed. We call these discrepancy measures rather than distances between distributions, because $F$ can be negative and $F$ and $F_0$ do not quite sum to one. For the same reason we avoid likelihood-based scores, which would not make sense for signed predictions. We attach no standard errors: the data are deterministic, and the intervals overlap heavily, so the usual sampling models do not apply.
 
-Note that comparing the Binomial with parameters $H$ and $\lambda/H$ is not an apples to apples comparison with $F^*(H,m,\lambda^*)$, but we're mainly interested in comparing $F$ and $F^*$ (we expect both to be superior to the Binomial, regardless of whether we plug $\lambda/H$ or $\lambda^*/H$ into the Binomial).
+The function `score` (`pii score`) attaches the measures for every checkpoint and every prediction on two ranges:
 
-The scoring is `winners`, in `src/primes_in_intervals/comparisons.py` (`pii winners`). It requires a `'comparison'` item, and adds a `'winners'` item, again keyed as the data is, recording "best" in the two senses above. For each range it takes $m$ over the range of consecutive integers just described, and computes, from the counts quadruples, the sum of squared errors for each of B (Binomial), F, and F$^*$; the three sums are stored under `'B sq error'`, `'F sq error'`, and `'F* sq error'`, and the labels are ranked under the keys `1`, `2`, `3`, from smallest squared error to largest. In the second sense, each $m$ is awarded to whichever prediction's count is closest to the observed count, ties awarding all of the tied; the lists of values of $m$ each prediction wins land under `'B wins for m in '` and its siblings, and the labels are ranked by how many values of $m$ they win under `'most wins'`, `'2nd most wins'`, and `'least wins'`, ties concatenating the labels. The trivial first checkpoint of a flat dataset gets a row of dashes.
+* a **central** range, the same for the whole dataset (by default $0$ up to the largest count observed anywhere in it);
+* a **global** range $0, 1, \ldots, m_T$, where $m_T$ is chosen so that the predicted mass of $F$ beyond it is provably at most $10^{-12}$. The bound is recorded with the scores, so a global score is a statement about the whole of each prediction, not only the part that happened to be observed.
+
+With the scores come, for each prediction, its total mass and deficit over the global range, its negative mass, and its least value, and the ratios $E(F)/E(F_0)$, which measure how much the correction helps.
+
+The older scoreboard, `winners` (`pii winners`), is still available. It ranks the three predictions by the sum of squared differences of the counts, and records for each $m$ which prediction's count lands closest to the observed count. Counting the values of $m$ each prediction "wins" ignores how large the discrepancies are, however: a prediction can win many bins by tiny margins and lose a few badly. So `score` is the assessment to rely on, and `winners` is a secondary summary.
 
 ### Example 1 {#sec-eg1compare}
 
 `compare` returns the whole dataset; as before, we display the header, in which `'contents'` now records the comparison and its column order.
 
 ```{python}
+from primes_in_intervals import compare, score
+
 compare(retrieve_data1disj)['header']
 ```
 
 ```{python}
-# NB: in the disjoint intervals case, our estimates frei and frei_alt are not intended to be applied.
+# NB: F and F0 were derived for overlapping intervals; this is disjoint data.
 retrieve_data1disj['comparison'][2500000]
 ```
 
@@ -88,9 +160,27 @@ retrieve_data1disj['comparison'][2500000]
 compare(retrieve_data1olap)['header']
 ```
 
+At the final checkpoint of the overlapping data, the entry for $m = 7$, and the parameters used:
+
 ```{python}
-retrieve_data1olap['comparison'][3000000][7]
+retrieve_data1olap['comparison'][3000000][7], retrieve_data1olap['prediction_parameters'][3000000]['mu']
 ```
+
+Now the scores at the final checkpoint, on the central range:
+
+```{python}
+score(retrieve_data1olap)
+final = retrieve_data1olap['scores'][3000000]
+pd.DataFrame(final['central']).loc[['m_lo', 'm_hi', 'E1', 'E2', 'Einf']]
+```
+
+and the ratios $E(F)/E(F_0)$ on both ranges:
+
+```{python}
+pd.DataFrame(final['ratio'])
+```
+
+The nested datasets work in the same way:
 
 ```{python}
 Cnest = list(nest_data1disj['nested_interval_data'].keys())
@@ -107,7 +197,7 @@ Cnest[k], compare(nest_data1olap)['comparison'][Cnest[k]]
 ### Example 2 {#sec-eg2compare}
 
 ```{python}
-# NB: in the disjoint intervals case, our estimates frei and frei_alt are not intended to be applied.
+# NB: F and F0 were derived for overlapping intervals; this is disjoint data.
 compare(retrieve_data2disj)['header']
 ```
 
@@ -116,7 +206,7 @@ compare(retrieve_data2olap)['header']
 ```
 
 ```{python}
-# NB: in the disjoint intervals case, our estimates frei and frei_alt are not intended to be applied.
+# NB: F and F0 were derived for overlapping intervals; the first entry is disjoint data.
 retrieve_data2disj['comparison'][65558989][5], retrieve_data2olap['comparison'][65558989][5]
 ```
 
@@ -126,10 +216,18 @@ k = 20
 Cnest[k], compare(nest_data2disj)['comparison'][Cnest[k]]
 ```
 
+For the nested overlapping intervals about $e^{18}$, here is how the discrepancies evolve as the nested window widens, every tenth interval:
+
 ```{python}
 Cnest = list(nest_data2olap['nested_interval_data'].keys())
-k = 20
-Cnest[k], compare(nest_data2olap)['comparison'][Cnest[k]]
+compare(nest_data2olap)
+score(nest_data2olap)
+rows = {}
+for c in Cnest[9::10]:
+    s = nest_data2olap['scores'][c]
+    rows[c[1] - c[0]] = {name: s['central'][name]['E1'] for name in ('B', 'F', 'F0')}
+    rows[c[1] - c[0]]['E1(F)/E1(F0)'] = s['ratio']['central']['E1']
+pd.DataFrame.from_dict(rows, orient='index').rename_axis('N')
 ```
 
 The next chapter turns these comparisons into readable tables.

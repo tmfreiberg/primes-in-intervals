@@ -230,3 +230,16 @@ class TestConflictsWidthAndProvenance:
         for c in (C[1], C[2], C[-1]):
             got = {m: v for m, v in ds["data"][c].items() if v}
             assert got == ref.overlap_reference_segment(A, c, 76)
+
+
+def test_resaving_stored_data_does_not_change_the_database(tmp_path):
+    db = tmp_path / "db"
+    ds = _small("overlap")
+    pii.save(ds, db_path=db)
+    conn = sqlite3.connect(db)
+    conn.execute("DROP TABLE provenance")  # as in a database saved before provenance existed
+    conn.commit()
+    conn.close()
+    before = db.read_bytes()
+    pii.save(copy.deepcopy(ds), db_path=db)
+    assert db.read_bytes() == before

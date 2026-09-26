@@ -800,6 +800,11 @@ def cmd_compare(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
     return _transform_command(args, parser, pii.compare)
 
 
+def cmd_score(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
+    """Attach discrepancy scores to a compared dataset."""
+    return _transform_command(args, parser, pii.score)
+
+
 def cmd_winners(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
     """Score the predictions per interval on a compared dataset."""
     return _transform_command(args, parser, pii.winners)
@@ -1870,7 +1875,8 @@ def build_parser() -> argparse.ArgumentParser:
         ("nest", cmd_nest, "convert to nested centered intervals"),
         ("analyze", cmd_analyze, "add distributions and summary statistics"),
         ("compare", cmd_compare, "attach the three predictions' comparisons"),
-        ("winners", cmd_winners, "score the predictions per interval"),
+        ("score", cmd_score, "attach discrepancy measures E1, E2, Einf per interval"),
+        ("winners", cmd_winners, "the older per-bin scoreboard of the predictions"),
     ]:
         p = _add(
             sub,

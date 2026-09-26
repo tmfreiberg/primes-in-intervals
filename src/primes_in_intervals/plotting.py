@@ -538,6 +538,7 @@ def plot_cumulative_frame(
     guides: bool = True,
     overlay: bool = True,
     overlay_position: tuple[float, float] = (0.99, 0.97),
+    y_min: float | None = None,
     x_pad: float = 0.5,
     ylim_decimals: int = 2,
 ) -> None:
@@ -567,6 +568,9 @@ def plot_cumulative_frame(
         Horizontal padding beyond ``m = 0`` and ``m = m_axis``.
     ylim_decimals : int, optional
         Rounding of the vertical limits.
+    y_min : float, optional
+        Extend the vertical axis down to at least this value (used by
+        :func:`animate_cumulative` to hold the bottom of the axis fixed).
     """
     ax.clear()
     m_axis = list(range(frame.m_axis + 1))
@@ -575,6 +579,8 @@ def plot_cumulative_frame(
     lowest = _draw_predictions(ax, frame.predictions, models, m_axis, guides, H, 0, frame.N)
     scale = 10**ylim_decimals
     top = np.ceil(scale * (y_max if y_max is not None else float(frame.P.max()))) / scale
+    if y_min is not None:
+        lowest = min(lowest, y_min)
     bottom = 0.0 if lowest >= 0 else -np.ceil(scale * -lowest) / scale - 1 / scale
     ax.set(xlim=(-x_pad, frame.m_axis + x_pad), ylim=(bottom, top))
     if bottom < 0:
@@ -629,7 +635,9 @@ def animate_cumulative(
         First checkpoint shown.
     y_max : float, optional
         Fixed top of the vertical axis (default: the maximum over the frames
-        shown, rounded up).
+        shown, rounded up).  The bottom is fixed too, at the least value of
+        any drawn prediction over the frames shown (zero if none is
+        negative).
     interval : int, optional
         Delay between frames in milliseconds.
     figsize, font_size : tuple and int, optional
@@ -653,6 +661,15 @@ def animate_cumulative(
         raise ValueError("no frames to animate")
     if y_max is None:
         y_max = max(float(f.P.max()) for f in shown)
+    # Hold the bottom of the axis fixed as well: the least value of any drawn
+    # prediction over all the frames shown (zero if none is negative).
+    models = frame_kwargs.get("models", DEFAULT_MODELS[:2])
+    y_min = 0.0
+    for f in shown:
+        for model in models:
+            values = f.prediction(model)
+            if values is not None and not np.any(np.isnan(values)):
+                y_min = min(y_min, float(values.min()))
     plt.rcParams.update({"font.size": font_size})
     fig, ax = plt.subplots(figsize=figsize)
     fig.suptitle(
@@ -662,7 +679,7 @@ def animate_cumulative(
     )
 
     def draw(frame: Any) -> None:
-        plot_cumulative_frame(ax, frame, H, y_max=y_max, **frame_kwargs)
+        plot_cumulative_frame(ax, frame, H, y_max=y_max, y_min=y_min, **frame_kwargs)
 
     anim = FuncAnimation(
         fig,

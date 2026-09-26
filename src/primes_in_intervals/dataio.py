@@ -240,7 +240,11 @@ def table_width(interval_type: str, db_path: str | Path | None = None) -> int | 
 
 
 def ensure_tables(db_path: str | Path | None = None, width: int = max_primes) -> None:
-    """Create the three raw tables and the provenance table if they do not exist.
+    """Create the three raw tables if they do not exist.
+
+    The provenance table is created by :func:`save` the first time it has a
+    row to record, so re-saving data that is already stored leaves the
+    database file unchanged.
 
     The raw schema is the original project's: three integer key columns
     forming the primary key, then ``m0`` through ``m{width}``.
@@ -266,6 +270,12 @@ def ensure_tables(db_path: str | Path | None = None, width: int = max_primes) ->
             + cols
             + "PRIMARY KEY(lower_bound, upper_bound, interval_length))"
         )
+    conn.commit()
+    conn.close()
+
+
+def _ensure_provenance_table(conn: sqlite3.Connection) -> None:
+    """Create the provenance table if absent (only when there is something to record)."""
     conn.execute(
         f"CREATE TABLE IF NOT EXISTS {_PROVENANCE_TABLE} "
         "(table_name text, lower_bound int, upper_bound int, interval_length int, "
@@ -273,8 +283,6 @@ def ensure_tables(db_path: str | Path | None = None, width: int = max_primes) ->
         "note text, "
         "PRIMARY KEY(table_name, lower_bound, upper_bound, interval_length))"
     )
-    conn.commit()
-    conn.close()
 
 
 def _row_counts(row: tuple, width: int) -> dict[int, int]:
@@ -402,23 +410,25 @@ def save(
         stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
         import primes_in_intervals
 
-        conn.executemany(
-            f"INSERT OR REPLACE INTO {_PROVENANCE_TABLE} VALUES(?,?,?,?,?,?,?,?,?)",
-            [
-                (
-                    table,
-                    r[0],
-                    r[1],
-                    r[2],
-                    f"{interval_type}_cp",
-                    COUNTER_VERSION,
-                    primes_in_intervals.__version__,
-                    stamp,
-                    note,
-                )
-                for r in written
-            ],
-        )
+        if written:
+            _ensure_provenance_table(conn)
+            conn.executemany(
+                f"INSERT OR REPLACE INTO {_PROVENANCE_TABLE} VALUES(?,?,?,?,?,?,?,?,?)",
+                [
+                    (
+                        table,
+                        r[0],
+                        r[1],
+                        r[2],
+                        f"{interval_type}_cp",
+                        COUNTER_VERSION,
+                        primes_in_intervals.__version__,
+                        stamp,
+                        note,
+                    )
+                    for r in written
+                ],
+            )
         conn.commit()
     finally:
         conn.close()

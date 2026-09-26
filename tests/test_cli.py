@@ -666,3 +666,15 @@ class TestCumulativeCommands:
         assert cli.main(argv) == 0
         assert gif.exists() and gif.stat().st_size > 0
         assert "frames, N = 1" in capsys.readouterr().out
+
+
+def test_score_command_roundtrip(cli_workspace, tmp_path, capsys):
+    a, b, c = (tmp_path / f"{x}.json" for x in "abc")
+    nested = str(cli_workspace["nested"])
+    assert cli.main(["analyze", "--from-json", nested, "--json", str(a)]) == 0
+    assert cli.main(["compare", "--from-json", str(a), "--json", str(b)]) == 0
+    assert cli.main(["score", "--from-json", str(b), "--json", str(c)]) == 0
+    scored = read_dataset_json(c)
+    key = next(iter(scored["scores"]))
+    assert set(scored["scores"][key]["central"]) == {"B", "F", "F0"}
+    assert scored["scores"][key]["central"]["F"]["E1"] >= 0

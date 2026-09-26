@@ -58,6 +58,7 @@ src/primes_in_intervals/   the package
   serialize.py             JSON round-tripping for datasets
   cli.py                   the command-line interface
 book/                      the Quarto book source
+scripts/book_animations.py regenerates the book's animations
 docs/cli.md                command-line reference
 tests/                     the test suite
 data/                      a small SQLite database of precomputed results
