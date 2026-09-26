@@ -226,6 +226,32 @@ def parse_checkpoint(text: str) -> int | tuple[int, int] | str:
     return parse_int(text)
 
 
+def parse_models(text: str) -> list[str]:
+    """Parse a comma-separated list of prediction model names.
+
+    Parameters
+    ----------
+    text : str
+        For example ``"F,F0,B_const"``.
+
+    Returns
+    -------
+    list of str
+
+    Raises
+    ------
+    argparse.ArgumentTypeError
+        If a name is not a known model.
+    """
+    names = [t.strip() for t in text.split(",") if t.strip()]
+    unknown = [n for n in names if n not in pii.MODELS]
+    if unknown:
+        raise argparse.ArgumentTypeError(
+            f"unknown model(s) {unknown}; choose from {', '.join(pii.MODELS)}"
+        )
+    return names
+
+
 # --------------------------------------------------------------------------
 # Named generators for the anyIntervals commands
 # --------------------------------------------------------------------------
@@ -380,7 +406,7 @@ def _load_dataset(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
 def _run_pipeline(dataset: Dataset, args: argparse.Namespace) -> Dataset | None:
     """Apply the requested pipeline steps to a dataset, in the fixed order.
 
-    The order is nest, analyze, compare, winners; later steps require
+    The order is nest, analyze, compare, score, winners; later steps require
     earlier ones, and the library's own guards report anything out of
     sequence.  ``nest`` returns a new dataset; the other steps modify in
     place.
@@ -410,6 +436,9 @@ def _run_pipeline(dataset: Dataset, args: argparse.Namespace) -> Dataset | None:
                 return None
         if getattr(args, "compare", False):
             if pii.compare(dataset) is None:
+                return None
+        if getattr(args, "score", False):
+            if pii.score(dataset) is None:
                 return None
         if getattr(args, "winners", False):
             if pii.winners(dataset) is None:
@@ -470,8 +499,9 @@ def _do_display(dataset: Dataset, args: argparse.Namespace) -> int:
         )
         if getattr(args, "comparisons", "off") in ("absolute", "probabilities"):
             print(
-                "In tuple (a,b,c,d), a is actual data, b is Binomial prediction, "
-                "c is frei prediction, and d is frei_alt prediction."
+                "In tuple (a,b,c,d), a is actual data, b is the binomial prediction "
+                "Binom(H, mu/H), c is the corrected prediction F, and d is the "
+                "uncorrected prediction F0 (M = A, N = B - A)."
             )
     _emit_dataframe(result, getattr(args, "format", "table"))
     return 0
@@ -867,16 +897,9 @@ def _frame_kwargs(args: argparse.Namespace) -> dict[str, Any]:
         overlay = None
     else:
         overlay = args.overlay  # a literal text box
-    show_frei: bool | None
-    if args.frei == "auto":
-        show_frei = None
-    else:
-        show_frei = args.frei == "on"
     return {
-        "show_binom": not args.no_binom,
-        "show_binom_alt": args.binom_alt,
-        "show_frei": show_frei,
-        "show_frei_alt": args.frei_alt,
+        "models": None if args.models is None else tuple(args.models),
+        "guides": not args.no_guides,
         "overlay": overlay,
         "overlay_position": (args.overlay_x, args.overlay_y),
         "note": args.note,
@@ -951,6 +974,448 @@ def cmd_animate(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
 def cmd_version(args: argparse.Namespace) -> int:
     """Print the package version."""
     print(pii.__version__)
+    return 0
+
+
+# --------------------------------------------------------------------------
+# Command handlers: manuscript predictions and their validation
+# --------------------------------------------------------------------------
+
+
+def cmd_predict(args: argparse.Namespace) -> int:
+    """Print every requested prediction at integer m for one (H, M, N)."""
+    models = tuple(args.models) if args.models is not None else pii.DEFAULT_MODELS
+    m_max = args.m_max
+    if m_max is None:
+        # Every observable count is at most pi(H + 1) < H / log 2, and the
+        # largest Poisson parameter in the range is H / log(max(2, M)).
+        m_max = max(30, math.ceil(args.H / math.log(max(2, args.M))) + 5)
+    pred = pii.predict_all(args.H, args.M, args.N, m_max, models=models)
+    import pandas as pd
+
+    columns = {"m": pred["m"]}
+    for name in models:
+        columns[name] = pred[name]
+    if "F" in models:
+        columns["F-F0"] = pred["correction"]
+    df = pd.DataFrame(columns)
+    info = {
+        "H": args.H,
+        "M": args.M,
+        "N": args.N,
+        "mu": pred["mu"],
+        "lambda": pred["lambda"],
+        "formula_version": pred["formula_version"],
+        "quadrature": pred.get("quadrature"),
+        "validity": pred["validity"],
+    }
+    if "B_avg" in models:
+        info["B_avg_info"] = pred.get("B_avg_info")
+    if args.format == "json":
+        import json
+
+        payload = {"info": info, "table": df.to_dict(orient="list")}
+        print(json.dumps(payload, indent=2, default=float))
+        return 0
+    for key in ("mu", "lambda"):
+        print(f"{key} = {info[key]}")
+    if info["quadrature"]:
+        q = info["quadrature"]
+        print(
+            f"quadrature: error estimate {q.get('error'):.3e}, "
+            f"{q.get('neval')} evaluations, converged {q.get('converged')}"
+        )
+    for name, v in info["validity"].items():
+        if not v["valid"]:
+            print(f"note: {name} not usable here ({v['reason']})")
+    if "B_avg" in models and info.get("B_avg_info"):
+        b = info["B_avg_info"]
+        print(
+            f"B_avg omits [max(2,M), e) of length {b['omitted_length']:.4f}; "
+            f"its contribution is between 0 and {b['omitted_bound']:.3e} for every m"
+        )
+    with pd.option_context("display.float_format", "{:.10g}".format):
+        _emit_dataframe(df.set_index("m"), args.format)
+    return 0
+
+
+def cmd_eta(args: argparse.Namespace) -> int:
+    """Print eta(H) = (log H + log 2 pi + gamma - 1) / H."""
+    print(pii.eta(args.H))
+    return 0
+
+
+def cmd_quadrature_check(args: argparse.Namespace) -> int:
+    """Compare F and F0 against tightened tolerances and an mpmath evaluation."""
+    import mpmath as mp
+    import numpy as np
+
+    H, M, N = args.H, args.M, args.N
+    ms = list(args.m) if args.m is not None else [0, 1, 2, 3, 5, 8, 13]
+    base = pii.integrated(np.array(ms, dtype=float), H, M, N)
+    tight = pii.integrated(
+        np.array(ms, dtype=float),
+        H,
+        M,
+        N,
+        settings=pii.QuadratureSettings(epsabs=1e-16, epsrel=1e-14, limit=2000),
+    )
+    eta_H = pii.eta(H)
+    lower, upper = max(2, M), M + N
+    print(f"H = {H}, M = {M}, N = {N}: range [{lower}, {upper}], eta(H) = {eta_H:.10g}")
+    print(
+        f"default tolerances: error estimate {base.error:.2e} ({base.neval} evaluations); "
+        f"tightened: {tight.error:.2e} ({tight.neval} evaluations)"
+    )
+    print(
+        f"{'m':>4} {'F':>24} {'|F - F_tight|':>14} {'|F - F_mp|':>12} "
+        f"{'|F0 - F0_mp|':>13} {'|corr - corr_mp|':>17}"
+    )
+    worst = 0.0
+    for i, m in enumerate(ms):
+
+        def p_mp(t: Any, m: int = m) -> Any:
+            u = mp.mpf(H) / mp.log(t)
+            return mp.exp(-u) * u**m / mp.factorial(m)
+
+        def q_mp(t: Any, m: int = m) -> Any:
+            u = mp.mpf(H) / mp.log(t)
+            return p_mp(t, m) * (1 - mp.mpf(eta_H) / 2 * ((m - u) ** 2 - m))
+
+        F0_mp = pii.mp_log_average(p_mp, lower, upper, N, dps=args.dps)
+        F_mp = pii.mp_log_average(q_mp, lower, upper, N, dps=args.dps)
+        dF = abs(base.F[i] - float(F_mp))
+        dF0 = abs(base.F0[i] - float(F0_mp))
+        dc = abs(base.correction[i] - float(F_mp - F0_mp))
+        worst = max(worst, dF, dF0, dc)
+        print(
+            f"{m:>4} {base.F[i]:>24.16e} {abs(base.F[i] - tight.F[i]):>14.2e} "
+            f"{dF:>12.2e} {dF0:>13.2e} {dc:>17.2e}"
+        )
+    print(f"largest absolute difference from the {args.dps}-digit evaluation: {worst:.2e}")
+    return 0
+
+
+def cmd_validate_counters(args: argparse.Namespace) -> int:
+    """Check overlap and overlap_cp against the independent reference counts."""
+    import random
+
+    import numpy as np
+
+    from primes_in_intervals import reference as ref
+
+    failures: list[str] = []
+    rng = random.Random(args.seed)
+    limit = args.limit
+    table = ref.prime_table(limit)
+    trial = np.array([ref.is_prime_trial(n) for n in range(limit + 1)])
+    if not np.array_equal(table, trial):
+        failures.append("array sieve disagrees with trial division")
+    from itertools import islice
+
+    from_sieve = list(islice(pii.postponed_sieve(), int(table.sum())))
+    if from_sieve != [int(n) for n in np.flatnonzero(table)]:
+        failures.append("postponed sieve disagrees with the array sieve")
+    print(f"prime tables: array sieve, trial division and postponed sieve agree up to {limit}")
+    pi = ref.prime_pi_table(limit + 200)
+    n_standalone = 0
+    for _ in range(args.cases):
+        H = rng.choice([1, 2, 3, 5, 7, 10, 20, 37, 50, 100])
+        A = rng.randint(0, limit // 4)
+        B = A + rng.randint(-5, min(400, limit // 4))
+        got = pii.overlap(A, B, H)
+        want = ref.overlap_reference(A, B, H, pi)
+        n_standalone += 1
+        if got != want:
+            failures.append(f"overlap({A},{B},{H}) = {got} != reference {want}")
+        if sum(got.values()) != max(B - A, 0):
+            failures.append(f"mass identity fails for overlap({A},{B},{H})")
+        if sum(m * g for m, g in got.items()) != ref.first_moment_identity(A, B, H, pi):
+            failures.append(f"first-moment identity fails for overlap({A},{B},{H})")
+    print(f"standalone overlap: {n_standalone} random ranges checked")
+    primes = [int(q) for q in np.flatnonzero(table)]
+    n_cp = 0
+    for _ in range(max(1, args.cases // 5)):
+        H = rng.choice([1, 2, 3, 5, 7, 10, 20, 37, 100])
+        start = rng.randint(0, limit // 8)
+        C = [start] + [start + rng.randint(0, limit // 8) for _ in range(rng.randint(1, 12))]
+        C.append(rng.choice(C))  # a duplicate
+        q = rng.choice(primes[: max(10, len(primes) // 4)])
+        C += [q, q - 1, max(0, q - H)]  # checkpoints at a crossing event
+        C_input = list(C)
+        rng.shuffle(C_input)
+        got_cp = pii.overlap_cp(list(C_input), H)
+        want_cp = ref.overlap_cp_reference(C, H)
+        n_cp += 1
+        if got_cp["data"] != want_cp["data"]:
+            failures.append(f"overlap_cp data mismatch for C={C_input}, H={H}")
+        for key in ("lower_bound", "upper_bound", "no_of_checkpoints"):
+            if got_cp["header"][key] != want_cp["header"][key]:
+                failures.append(f"overlap_cp header {key} mismatch for C={C_input}, H={H}")
+        Cs = sorted(set(C))
+        for i in range(1, len(Cs)):
+            d = {m: v for m, v in got_cp["data"][Cs[i]].items() if v}
+            if d != pii.overlap(Cs[0], Cs[i], H):
+                failures.append(f"checkpoint {Cs[i]} differs from standalone (C={Cs}, H={H})")
+            for j in range(1, i):
+                diff = {
+                    m: got_cp["data"][Cs[i]][m] - got_cp["data"][Cs[j]][m]
+                    for m in got_cp["data"][Cs[i]]
+                }
+                diff = {m: v for m, v in diff.items() if v}
+                if diff != ref.overlap_reference(Cs[j], Cs[i], H, pi):
+                    failures.append(f"cumulative subtraction fails on ({Cs[j]}, {Cs[i]}], H={H}")
+    print(f"checkpointed overlap_cp: {n_cp} random checkpoint lists checked")
+    for H in (1, 2, 3, 5, 10, 25):
+        C = list(range(0, 61)) + list(range(70, 2001, 37)) + [2000]
+        if pii.overlap_cp(list(C), H)["data"] != ref.overlap_cp_reference(C, H)["data"]:
+            failures.append(f"dense checkpoints from zero fail for H={H}")
+    print("dense checkpoints 0, 1, 2, ..., 60 from zero: checked for six lengths")
+    if failures:
+        print(f"FAILURES: {len(failures)}")
+        for f in failures[:20]:
+            print(" -", f)
+        return 1
+    print("all counter validations passed")
+    return 0
+
+
+def cmd_provenance(args: argparse.Namespace) -> int:
+    """Print the provenance entries of stored rows."""
+    df = pii.provenance_of(args.H, args.type, db_path=args.db)
+    if len(df) == 0:
+        print("no provenance entries (rows saved before provenance was recorded have none)")
+        return 0
+    _emit_dataframe(df, args.format)
+    return 0
+
+
+# --------------------------------------------------------------------------
+# Command handlers: the cumulative experiment
+# --------------------------------------------------------------------------
+
+
+def _cumulative_settings(args: argparse.Namespace) -> Any:
+    return pii.QuadratureSettings(epsabs=args.epsabs, epsrel=args.epsrel)
+
+
+def _cumulative_dataset(args: argparse.Namespace) -> Dataset | None:
+    """Load the lower-bound-zero dataset from JSON or the database."""
+    if args.from_json is not None:
+        ds = read_dataset_json(args.from_json)
+        if ds["header"]["lower_bound"] != 0:
+            print("error: the dataset's lower bound is not 0", file=sys.stderr)
+            return None
+        return ds
+    try:
+        with contextlib.redirect_stdout(sys.stderr):
+            return pii.load_cumulative(args.H, db_path=args.db)
+    except LookupError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return None
+
+
+def _cumulative_frames(args: argparse.Namespace) -> tuple[Any, list[Any]] | None:
+    """Load the dataset and build its frames (with the prediction cache)."""
+    ds = _cumulative_dataset(args)
+    if ds is None:
+        return None
+    H = ds["header"]["interval_length"]
+    cache = pii.PredictionCache(args.cache) if args.cache else None
+    models = tuple(args.models) if args.models is not None else pii.DEFAULT_MODELS
+    frames = pii.build_frames(
+        ds,
+        overlay_from=args.overlay_from,
+        models=models,
+        m_axis=args.m_axis,
+        central=tuple(args.central) if args.central is not None else None,
+        tail_tolerance=args.tail_tolerance,
+        settings=_cumulative_settings(args),
+        cache=cache,
+    )
+    if cache is not None:
+        cache.save()
+        print(f"prediction cache: {len(cache)} entries in {args.cache}", file=sys.stderr)
+    return H, frames
+
+
+def cmd_cumulative_run(args: argparse.Namespace) -> int:
+    """Count primes in (n, n+H] for 1 <= n <= N at a checkpoint schedule."""
+    if args.checkpoints is None and args.N_max is None:
+        return _fail("give --N-max or --checkpoints")
+    import time
+
+    t0 = time.perf_counter()
+    try:
+        ds = pii.run_cumulative(
+            args.H,
+            N_max=args.N_max,
+            checkpoints=args.checkpoints,
+            dense_until=args.dense_until,
+            ratio=args.ratio,
+            db_path=args.db,
+            save_to_db=args.save,
+            on_conflict=args.on_conflict,
+            note=args.note,
+        )
+    except pii.StorageConflictError as exc:
+        return _fail(str(exc))
+    elapsed = time.perf_counter() - t0
+    C = sorted(ds["data"].keys())
+    print(
+        f"H = {args.H}: {len(C) - 1} checkpoints from N = {C[1]} to N = {C[-1]} "
+        f"in {elapsed:.2f} s" + (" (saved)" if args.save else ""),
+        file=sys.stderr,
+    )
+    dest = _json_dest(args)
+    if dest is not None:
+        write_dataset_json(ds, dest)
+    return 0
+
+
+def cmd_cumulative_frames(args: argparse.Namespace) -> int:
+    """Build the frames of the cumulative experiment and write the CSV tables."""
+    loaded = _cumulative_frames(args)
+    if loaded is None:
+        return 1
+    H, frames = loaded
+    p1, p2 = pii.write_tables(frames, H, args.out_dir, stem=args.stem)
+    print(f"wrote {p1}\nwrote {p2}")
+    scored = [f for f in frames if f.scores is not None]
+    if scored:
+        last = scored[-1]
+        sc = last.scores
+        lo, hi = None, None
+        print(f"final checkpoint N = {last.N}: mu = {last.predictions['mu']:.6f}, "
+              f"lambda = {last.predictions['lambda']:.6f}, empirical mean = {last.mean:.6f}")
+        for name in sc["central"]:
+            c = sc["central"][name]
+            if c is None:
+                continue
+            lo, hi = c["m_lo"], c["m_hi"]
+            g = sc["global"][name]
+            ms = sc["mass"][name]
+            print(
+                f"  {name:9s} central E1 = {c['E1']:.5f}  E2 = {c['E2']:.5f}  "
+                f"Einf = {c['Einf']:.5f} | global E1 = {g['E1']:.5f} "
+                f"(tail bound {g['predicted_tail_bound']:.1e}) | deficit {ms['deficit']:.2e}, "
+                f"negative mass {ms['negative_mass']:.2e}"
+            )
+        r = sc["ratio"]["central"]
+        print(
+            f"  central range m = {lo}..{hi}; global range m = 0..{sc['m_T']}; "
+            f"E(F)/E(F0) central: E1 {r['E1']:.3f}, E2 {r['E2']:.3f}, Einf {r['Einf']:.3f}"
+        )
+    return 0
+
+
+def cmd_cumulative_plot(args: argparse.Namespace) -> int:
+    """Write the static figures of the cumulative experiment."""
+    loaded = _cumulative_frames(args)
+    if loaded is None:
+        return 1
+    H, frames = loaded
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    formats = tuple(args.formats.split(","))
+    out = args.out_dir
+    kinds = ["frame", "residuals", "discrepancies", "means"] if args.kind == "all" else [args.kind]
+    scored = [f for f in frames if f.scores is not None]
+    if args.N == "last":
+        target = scored[-1] if scored else frames[-1]
+    else:
+        wanted = parse_int(args.N)
+        candidates = [f for f in frames if f.N <= wanted]
+        if not candidates:
+            return _fail(f"no checkpoint N <= {wanted}; the first checkpoint is N = {frames[0].N}")
+        target = candidates[-1]
+        if target.N != wanted:
+            print(
+                f"note: N = {wanted} is not a checkpoint; using the largest checkpoint "
+                f"below it, N = {target.N}",
+                file=sys.stderr,
+            )
+    written: list[Any] = []
+    models = tuple(args.models) if args.models is not None else ("F", "F0", "B_const")
+    plt.rcParams.update({"font.size": args.font_size})
+    if "frame" in kinds:
+        fig, ax = plt.subplots(figsize=tuple(args.figsize))
+        pii.plot_cumulative_frame(ax, target, H, models=models, guides=not args.no_guides)
+        fig.suptitle(rf"$H = {H}$, cumulative frequencies over $1 \leq n \leq N$, $N = {target.N}$")
+        written += pii.save_figure(
+            fig, f"{out}/{args.stem or f'cumulative_H{H}'}_frame_N{target.N}", formats, args.dpi
+        )
+        plt.close(fig)
+    if "residuals" in kinds:
+        if target.predictions is None:
+            return _fail(f"N = {target.N} has no predictions (before the overlay start)")
+        for scaled in (False, True):
+            fig = pii.plot_residuals(target, H, scale_by_eta=scaled)
+            suffix = "_over_eta" if scaled else ""
+            written += pii.save_figure(
+                fig,
+                f"{out}/{args.stem or f'cumulative_H{H}'}_residuals_N{target.N}{suffix}",
+                formats,
+                args.dpi,
+            )
+            plt.close(fig)
+    if "discrepancies" in kinds or "means" in kinds:
+        _long, summary = pii.frames_to_tables(frames, H)
+        if "discrepancies" in kinds:
+            for which in ("central", "global"):
+                fig = pii.plot_discrepancies(summary, models=models, which=which)
+                written += pii.save_figure(
+                    fig,
+                    f"{out}/{args.stem or f'cumulative_H{H}'}_discrepancies_{which}",
+                    formats,
+                    args.dpi,
+                )
+                plt.close(fig)
+        if "means" in kinds:
+            fig = pii.plot_means(summary)
+            written += pii.save_figure(
+                fig, f"{out}/{args.stem or f'cumulative_H{H}'}_means", formats, args.dpi
+            )
+            plt.close(fig)
+    for path in written:
+        print(f"wrote {path}")
+    return 0
+
+
+def cmd_cumulative_animate(args: argparse.Namespace) -> int:
+    """Write the animation of the cumulative experiment (GIF or MP4)."""
+    loaded = _cumulative_frames(args)
+    if loaded is None:
+        return 1
+    H, frames = loaded
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    models = tuple(args.models) if args.models is not None else ("F", "F0")
+    plt.rcParams.update({"font.size": args.font_size})
+    fig, anim = pii.animate_cumulative(
+        frames,
+        H,
+        N_min=args.N_min,
+        y_max=args.y_max,
+        figsize=tuple(args.figsize),
+        font_size=args.font_size,
+        models=models,
+        guides=not args.no_guides,
+    )
+    out = str(args.output)
+    if out.lower().endswith(".mp4"):
+        pii.save_mp4(anim, out, fps=args.fps, dpi=args.dpi)
+    else:
+        pii.save_gif(anim, out, fps=args.fps, dpi=args.dpi)
+    plt.close(fig)
+    shown = [f for f in frames if args.N_min is None or f.N >= args.N_min]
+    print(f"wrote {out} ({len(shown)} frames, N = {shown[0].N} .. {shown[-1].N})")
     return 0
 
 
@@ -1088,6 +1553,7 @@ def _build_parents() -> dict[str, argparse.ArgumentParser]:
     pipeline.add_argument("--nest", action="store_true", help="apply nest()")
     pipeline.add_argument("--analyze", action="store_true", help="apply analyze()")
     pipeline.add_argument("--compare", action="store_true", help="apply compare()")
+    pipeline.add_argument("--score", action="store_true", help="apply score()")
     pipeline.add_argument("--winners", action="store_true", help="apply winners()")
     pipeline.add_argument(
         "--display",
@@ -1135,19 +1601,20 @@ def _add_checkpoint_args(parser: argparse.ArgumentParser) -> None:
 def _add_frame_args(parser: argparse.ArgumentParser) -> None:
     """Add the figure and curve options shared by plot and animate."""
     parser.add_argument("-o", "--output", required=True, help="output image file")
-    parser.add_argument("--no-binom", action="store_true", help="omit the binomial curve")
     parser.add_argument(
-        "--binom-alt",
-        action="store_true",
-        help="also draw the binomial at the alternative density 1/log N",
+        "--models",
+        type=parse_models,
+        default=None,
+        metavar="LIST",
+        help=(
+            "comma-separated predictions to draw, from "
+            + ",".join(pii.MODELS)
+            + " (default: F,F0,B_const for overlapping data, B_const otherwise)"
+        ),
     )
     parser.add_argument(
-        "--frei",
-        choices=["auto", "on", "off"],
-        default="auto",
-        help="draw F (auto: only for overlapping intervals, as in the exposition)",
+        "--no-guides", action="store_true", help="markers only, no smooth guide curves"
     )
-    parser.add_argument("--frei-alt", action="store_true", help="also draw F*")
     parser.add_argument(
         "--overlay",
         default="auto",
@@ -1444,6 +1911,222 @@ def build_parser() -> argparse.ArgumentParser:
 
     p = _add(sub, "ms", ["MS"], "the Montgomery-Soundararajan constant")
     p.set_defaults(func=cmd_ms)
+
+    p = _add(sub, "eta", [], "eta(H) = (log H + log 2pi + gamma - 1)/H")
+    p.add_argument("H", type=parse_int)
+    p.set_defaults(func=cmd_eta)
+
+    p = _add(
+        sub,
+        "predict",
+        [],
+        "the manuscript's predictions at integer m for one (H, M, N)",
+        parents=[parents["format"]],
+    )
+    p.add_argument("H", type=parse_int, help="interval length")
+    p.add_argument("M", type=parse_int, help="left end of the range of starting points")
+    p.add_argument("N", type=parse_int, help="number of starting points (M < n <= M + N)")
+    p.add_argument(
+        "--m-max",
+        type=parse_int,
+        default=None,
+        help="largest m (default: max(30, H/log(max(2,M)) + 5))",
+    )
+    p.add_argument(
+        "--models",
+        type=parse_models,
+        default=None,
+        metavar="LIST",
+        help="comma-separated models from " + ",".join(pii.MODELS) + " (default: all but B_avg)",
+    )
+    p.set_defaults(func=cmd_predict)
+
+    p = _add(
+        sub,
+        "quadrature-check",
+        [],
+        "compare F and F0 with tightened tolerances and an mpmath evaluation",
+    )
+    p.add_argument("H", type=parse_int)
+    p.add_argument("M", type=parse_int)
+    p.add_argument("N", type=parse_int)
+    p.add_argument(
+        "--m", type=parse_int_list, default=None, help="comma-separated m (default 0,1,2,3,5,8,13)"
+    )
+    p.add_argument("--dps", type=int, default=30, help="mpmath working precision in digits")
+    p.set_defaults(func=cmd_quadrature_check)
+
+    p = _add(
+        sub,
+        "validate-counters",
+        [],
+        "check overlap and overlap_cp against the independent reference counts",
+    )
+    p.add_argument("--limit", type=parse_int, default=20000, help="prime table size")
+    p.add_argument("--cases", type=parse_int, default=1000, help="number of random ranges")
+    p.add_argument("--seed", type=int, default=12345)
+    p.set_defaults(func=cmd_validate_counters)
+
+    p = _add(
+        sub,
+        "provenance",
+        [],
+        "list the provenance entries of stored rows",
+        parents=[parents["db"]],
+    )
+    p.add_argument("-H", "--length", dest="H", type=parse_int, default=None, help="interval length")
+    p.add_argument("--type", choices=["disjoint", "overlap", "prime_start"], default=None)
+    p.add_argument("--format", choices=["table", "csv"], default="table")
+    p.set_defaults(func=cmd_provenance)
+
+    # ---------------- the cumulative experiment
+    p = _add(
+        sub,
+        "cumulative-run",
+        [],
+        "count primes in (n, n+H] for 1 <= n <= N at a checkpoint schedule",
+        parents=[parents["json_out"], parents["db"]],
+    )
+    p.add_argument(
+        "-H", "--length", dest="H", type=parse_int, required=True, help="interval length"
+    )
+    p.add_argument("--N-max", dest="N_max", type=parse_int, default=None, help="final checkpoint")
+    p.add_argument(
+        "--dense-until",
+        type=parse_int,
+        default=100,
+        help="every integer up to here is a checkpoint",
+    )
+    p.add_argument(
+        "--ratio", type=float, default=1.05, help="growth factor of the later checkpoints"
+    )
+    p.add_argument(
+        "--checkpoints",
+        type=parse_int_list,
+        default=None,
+        metavar="LIST",
+        help="explicit checkpoints instead of a schedule",
+    )
+    p.add_argument("--save", action="store_true", help="store the rows (0, N, H) in overlap_raw")
+    p.add_argument("--on-conflict", choices=["error", "skip", "replace"], default="error")
+    p.add_argument("--note", default="", help="provenance note")
+    p.set_defaults(func=cmd_cumulative_run)
+
+    cumulative_in = argparse.ArgumentParser(add_help=False, parents=[parents["db"]])
+    cumulative_in.add_argument(
+        "-H",
+        "--length",
+        dest="H",
+        type=parse_int,
+        default=None,
+        help="interval length (database input)",
+    )
+    cumulative_in.add_argument(
+        "--from-json", metavar="FILE", default=None, help="dataset JSON instead of the database"
+    )
+    cumulative_in.add_argument(
+        "--overlay-from",
+        type=parse_int,
+        default=pii.DEFAULT_OVERLAY_FROM,
+        help="first N with predictions (default %(default)s)",
+    )
+    cumulative_in.add_argument(
+        "--models",
+        type=parse_models,
+        default=None,
+        metavar="LIST",
+        help="comma-separated models from " + ",".join(pii.MODELS),
+    )
+    cumulative_in.add_argument(
+        "--m-axis",
+        type=parse_int,
+        default=None,
+        help="largest m on the axis (default: largest observed)",
+    )
+    cumulative_in.add_argument(
+        "--central",
+        nargs=2,
+        type=parse_int,
+        metavar=("LO", "HI"),
+        default=None,
+        help="fixed central scoring range (default 0 to the largest observed m)",
+    )
+    cumulative_in.add_argument(
+        "--tail-tolerance",
+        type=float,
+        default=1e-12,
+        help="omitted predicted mass allowed in the global range",
+    )
+    cumulative_in.add_argument(
+        "--epsabs", type=float, default=1e-13, help="quadrature absolute tolerance"
+    )
+    cumulative_in.add_argument(
+        "--epsrel", type=float, default=1e-11, help="quadrature relative tolerance"
+    )
+    cumulative_in.add_argument(
+        "--cache", default=None, metavar="FILE", help="JSON prediction cache to read and update"
+    )
+    cumulative_in.add_argument("--out-dir", default="output", help="output directory")
+    cumulative_in.add_argument(
+        "--stem", default=None, help="file name stem (default cumulative_H<H>)"
+    )
+
+    p = _add(
+        sub,
+        "cumulative-frames",
+        [],
+        "predictions and discrepancy scores at every checkpoint, as CSV tables",
+        parents=[cumulative_in],
+    )
+    p.set_defaults(func=cmd_cumulative_frames)
+
+    p = _add(
+        sub,
+        "cumulative-plot",
+        [],
+        "static figures: histogram frame, residuals, discrepancies against N, means",
+        parents=[cumulative_in],
+    )
+    p.add_argument(
+        "--kind", choices=["frame", "residuals", "discrepancies", "means", "all"], default="all"
+    )
+    p.add_argument(
+        "--N",
+        default="last",
+        help=(
+            "checkpoint for the frame and residual figures: 'last' or an integer "
+            "(the largest checkpoint not exceeding it is used)"
+        ),
+    )
+    p.add_argument("--formats", default="pdf,png", help="comma-separated output formats")
+    p.add_argument("--no-guides", action="store_true", help="markers only, no smooth guide curves")
+    p.add_argument("--figsize", nargs=2, type=float, metavar=("W", "IN"), default=[14.0, 8.0])
+    p.add_argument("--font-size", type=int, default=12)
+    p.add_argument("--dpi", type=int, default=150)
+    p.set_defaults(func=cmd_cumulative_plot)
+
+    p = _add(
+        sub,
+        "cumulative-animate",
+        [],
+        "animation of the cumulative frequencies and their predictions (GIF or MP4)",
+        parents=[cumulative_in],
+    )
+    p.add_argument("-o", "--output", required=True, help="output file (.gif or .mp4)")
+    p.add_argument(
+        "--N-min",
+        dest="N_min",
+        type=parse_int,
+        default=None,
+        help="first checkpoint shown (default: N = 1)",
+    )
+    p.add_argument("--y-max", type=float, default=None, help="fixed top of the vertical axis")
+    p.add_argument("--no-guides", action="store_true", help="markers only, no smooth guide curves")
+    p.add_argument("--fps", type=int, default=8)
+    p.add_argument("--dpi", type=int, default=80)
+    p.add_argument("--figsize", nargs=2, type=float, metavar=("W", "IN"), default=[16.0, 9.0])
+    p.add_argument("--font-size", type=int, default=14)
+    p.set_defaults(func=cmd_cumulative_animate)
 
     # ---------------- plotting
     p = _add(

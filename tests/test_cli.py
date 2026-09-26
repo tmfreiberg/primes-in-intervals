@@ -433,3 +433,236 @@ class TestErrorsAndMeta:
     def test_version(self, capsys):
         assert cli.main(["version"]) == 0
         assert capsys.readouterr().out.strip() == pii.__version__
+
+class TestManuscriptCommands:
+    def test_eta_and_predict(self, capsys):
+        assert cli.main(["eta", "40"]) == 0
+        assert float(capsys.readouterr().out) == pytest.approx(pii.eta(40))
+        assert cli.main(["predict", "40", "0", "10**4", "--m-max", "6", "--format", "json"]) == 0
+        payload = json.loads(capsys.readouterr().out)
+        assert payload["info"]["mu"] == pytest.approx(pii.averaged_parameter(40, 0, 10**4))
+        assert len(payload["table"]["F"]) == 7
+        assert cli.main(["predict", "40", "0", "10**4", "--m-max", "4", "--models", "F,B_avg"]) == 0
+        out = capsys.readouterr().out
+        assert "B_avg omits" in out and "quadrature" in out
+
+    def test_predict_rejects_unknown_model(self):
+        with pytest.raises(SystemExit):
+            cli.main(["predict", "40", "0", "100", "--models", "nonsense"])
+
+    def test_quadrature_check(self, capsys):
+        assert (
+            cli.main(["quadrature-check", "30", "0", "10**4", "--m", "0,2,5", "--dps", "20"]) == 0
+        )
+        out = capsys.readouterr().out
+        assert "largest absolute difference" in out
+        worst = float(out.strip().split()[-1])
+        assert worst < 1e-13
+
+    def test_validate_counters(self, capsys):
+        assert cli.main(["validate-counters", "--limit", "3000", "--cases", "40"]) == 0
+        assert "all counter validations passed" in capsys.readouterr().out
+
+    def test_provenance_and_conflict_flags(self, tmp_path, capsys):
+        db = tmp_path / "db"
+        argv = [
+            "cumulative-run",
+            "-H",
+            "10",
+            "--checkpoints",
+            "5,20",
+            "--save",
+            "--db",
+            str(db),
+            "--note",
+            "t",
+        ]
+        assert cli.main(argv) == 0
+        assert cli.main(["provenance", "--db", str(db), "--format", "csv"]) == 0
+        out = capsys.readouterr().out
+        assert out.count("overlap_raw") == 2 and ",t" in out
+        assert cli.main(["provenance", "--db", str(tmp_path / "none")]) == 0
+        assert "no provenance entries" in capsys.readouterr().out
+
+
+@pytest.fixture(scope="module")
+def cumulative_workspace(tmp_path_factory):
+    """Run a small cumulative experiment once for the command tests below."""
+    root = tmp_path_factory.mktemp("cumulative")
+    db = root / "db"
+    data = root / "cum.json"
+    argv = [
+        "cumulative-run",
+        "-H",
+        "20",
+        "--N-max",
+        "1500",
+        "--dense-until",
+        "30",
+        "--ratio",
+        "1.3",
+        "--save",
+        "--db",
+        str(db),
+        "--json",
+        str(data),
+    ]
+    assert cli.main(argv) == 0
+    return {"db": db, "json": data, "root": root}
+
+
+class TestCumulativeCommands:
+    def test_run_output_and_resave(self, cumulative_workspace, capsys):
+        ds = read_dataset_json(cumulative_workspace["json"])
+        assert ds["header"]["lower_bound"] == 0 and sorted(ds["data"])[:3] == [0, 1, 2]
+        # saving the same counts again is harmless
+        argv = [
+            "cumulative-run",
+            "-H",
+            "20",
+            "--N-max",
+            "1500",
+            "--dense-until",
+            "30",
+            "--ratio",
+            "1.3",
+            "--save",
+            "--db",
+            str(cumulative_workspace["db"]),
+        ]
+        assert cli.main(argv) == 0
+        assert cli.main(["cumulative-run", "-H", "20"]) == 1
+        assert "give --N-max" in capsys.readouterr().err
+
+    def test_frames_from_db_and_json(self, cumulative_workspace, capsys):
+        out = cumulative_workspace["root"] / "frames"
+        argv = [
+            "cumulative-frames",
+            "-H",
+            "20",
+            "--db",
+            str(cumulative_workspace["db"]),
+            "--out-dir",
+            str(out),
+            "--overlay-from",
+            "200",
+            "--cache",
+            str(out / "cache.json"),
+            "--models",
+            "F,F0,B_const",
+        ]
+        assert cli.main(argv) == 0
+        text = capsys.readouterr().out
+        assert "final checkpoint N = 1500" in text and "central range m = 0.." in text
+        assert (out / "cumulative_H20_by_N.csv").exists()
+        assert (out / "cumulative_H20_by_N_m.csv").exists()
+        argv = [
+            "cumulative-frames",
+            "--from-json",
+            str(cumulative_workspace["json"]),
+            "--out-dir",
+            str(out),
+            "--overlay-from",
+            "200",
+            "--cache",
+            str(out / "cache.json"),
+            "--models",
+            "F,F0,B_const",
+            "--stem",
+            "again",
+        ]
+        assert cli.main(argv) == 0
+        assert "prediction cache" in capsys.readouterr().err
+        assert (out / "again_by_N.csv").exists()
+
+    def test_missing_dataset_fails(self, cumulative_workspace, capsys):
+        assert (
+            cli.main(["cumulative-frames", "-H", "21", "--db", str(cumulative_workspace["db"])])
+            == 1
+        )
+        assert "no overlapping data" in capsys.readouterr().err
+
+    def test_plot_all_and_animate(self, cumulative_workspace, capsys):
+        out = cumulative_workspace["root"] / "figs"
+        argv = [
+            "cumulative-plot",
+            "--from-json",
+            str(cumulative_workspace["json"]),
+            "--out-dir",
+            str(out),
+            "--overlay-from",
+            "200",
+            "--formats",
+            "png",
+            "--dpi",
+            "40",
+            "--models",
+            "F,F0",
+        ]
+        assert cli.main(argv) == 0
+        text = capsys.readouterr().out
+        for name in (
+            "frame_N1500",
+            "residuals_N1500",
+            "residuals_N1500_over_eta",
+            "discrepancies_central",
+            "discrepancies_global",
+            "means",
+        ):
+            assert (out / f"cumulative_H20_{name}.png").exists(), name
+        assert text.count("wrote") == 6
+        argv = [
+            "cumulative-plot",
+            "--from-json",
+            str(cumulative_workspace["json"]),
+            "--out-dir",
+            str(out),
+            "--overlay-from",
+            "200",
+            "--formats",
+            "png",
+            "--dpi",
+            "40",
+            "--kind",
+            "frame",
+            "--N",
+            "7",
+        ]
+        assert cli.main(argv) == 0
+        assert (out / "cumulative_H20_frame_N7.png").exists()
+        argv = [
+            "cumulative-plot",
+            "--from-json",
+            str(cumulative_workspace["json"]),
+            "--out-dir",
+            str(out),
+            "--overlay-from",
+            "200",
+            "--kind",
+            "residuals",
+            "--N",
+            "7",
+        ]
+        assert cli.main(argv) == 1
+        assert "no predictions" in capsys.readouterr().err
+        gif = out / "anim.gif"
+        argv = [
+            "cumulative-animate",
+            "--from-json",
+            str(cumulative_workspace["json"]),
+            "-o",
+            str(gif),
+            "--overlay-from",
+            "200",
+            "--N-min",
+            "1000",
+            "--dpi",
+            "25",
+            "--fps",
+            "5",
+            "--models",
+            "F",
+        ]
+        assert cli.main(argv) == 0
+        assert gif.exists() and gif.stat().st_size > 0
+        assert "frames, N = 1" in capsys.readouterr().out
