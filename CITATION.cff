@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata below."
+type: software
+title: "Primes in intervals"
+authors:
+  - family-names: Freiberg
+    given-names: Tristan
+version: 1.1.0
+date-released: 2026-09-26
+doi: 10.5281/zenodo.22982648
+license: MIT
+repository-code: "https://github.com/tmfreiberg/primes-in-intervals"
+url: "https://tmfreiberg.github.io/primes-in-intervals/"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.22982648
+    description: "All versions (resolves to the latest)"
+  - type: doi
+    value: 10.5281/zenodo.22982661
+    description: "Version 1.1.0"
+  - type: doi
+    value: 10.5281/zenodo.22982649
+    description: "Version v2023.08: the code as committed on 2023-08-05"
+  - type: swh
+    value: "swh:1:rev:2a0b2e0ff8a137af1c325491901f7993cc95778b"
+    description: "Software Heritage identifier of the 2023-08-05 commit"

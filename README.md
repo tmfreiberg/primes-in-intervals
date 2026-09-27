@@ -76,6 +76,35 @@ pytest
 
 163 tests cover the counters, the transforms, the storage layer, the statistics, the predictions, the display code, and the CLI. The package is linted and type-checked with `ruff` and `mypy`.
 
+## How to cite
+
+Please cite the software through Zenodo. For the project as a whole, use the
+DOI that always resolves to the latest version:
+
+> Freiberg, T. *Primes in intervals*. Zenodo. https://doi.org/10.5281/zenodo.22982648
+
+To cite the exact code behind a set of results, use the version DOI:
+
+- version 1.1.0: https://doi.org/10.5281/zenodo.22982661
+- version v2023.08, the code as committed on 2023-08-05:
+  https://doi.org/10.5281/zenodo.22982649 (Software Heritage:
+  `swh:1:rev:2a0b2e0ff8a137af1c325491901f7993cc95778b`)
+
+```bibtex
+@software{freiberg_primes_in_intervals,
+  author    = {Freiberg, Tristan},
+  title     = {Primes in intervals},
+  publisher = {Zenodo},
+  version   = {1.1.0},
+  year      = {2026},
+  doi       = {10.5281/zenodo.22982661},
+  url       = {https://doi.org/10.5281/zenodo.22982661}
+}
+```
+
+GitHub's "Cite this repository" button reads the same information from
+`CITATION.cff`.
+
 ## About
 
 This is a rewrite of a 2023 project, undertaken as a self-directed exercise in number theory and Python. The original was a single script with an expository README; this version packages the code into modules with tests and a command-line interface, and moves the exposition into a Quarto book. The mathematical content is unchanged. The refinements $F$ and $F^*$ are the author's own; they are documented here and in the book but are not a published or peer-reviewed result.
