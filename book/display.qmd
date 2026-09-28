@@ -8,7 +8,7 @@ Its seven options, each a string, select what the table shows.
 
 `orient` is passed through to pandas: `'index'` (the default) puts the checkpoints down the rows, `'columns'` puts them across the top.
 
-`description` controls the caption. With the default `'on'`, the returned table is styled with a caption of the form "Interval type: overlapping. Lower bound: 2000000. Upper bound: 3000000. Interval length: 100. Partial counts: cumulative.", and when a comparisons view is on, the caption gains a sentence naming the order of the quadruples: the actual data, then the Binomial prediction $\mathrm{Binom}(H, \mu/H)$, then the corrected prediction $F$, then the uncorrected prediction $F_0$ (see @sec-compare). With `'off'`, the bare DataFrame comes back, which is also the form that accepts further pandas chaining such as `.head()` and `.tail()`.
+`description` controls the caption. With the default `'on'`, a flat dataset's table is styled with a caption of the form "Interval type: overlapping. Lower bound: 2000000. Upper bound: 3000000. Interval length: 100. Partial counts: cumulative.", and when a comparisons view is on, the caption gains a sentence naming the order of the quadruples: the actual data, then the Binomial prediction $\mathrm{Binom}(H, \mu/H)$, then the corrected prediction $F$, then the uncorrected prediction $F_0$ (see @sec-compare). With `'off'`, the bare DataFrame comes back, which is also the form that accepts further pandas chaining such as `.head()` and `.tail()`.
 
 `zeroth_item` set to `'no show'` drops the trivial first checkpoint's row (or column), whose counts are all zero.
 

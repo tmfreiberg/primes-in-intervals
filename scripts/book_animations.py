@@ -4,12 +4,14 @@ Run from the repository root:
 
     python scripts/book_animations.py
 
-It writes three GIFs into ``images/``: the nested animations about ``e^17``
+It writes four GIFs into ``images/``: the nested animations about ``e^17``
 (overlapping and prime-starting intervals, ``H = 76``) and about ``e^21``
-(overlapping intervals, ``H = 60``, from the database).  The fourth GIF of
-that chapter, ``li20_H_100.gif``, is not regenerated here.  Each frame shows
+(overlapping intervals, ``H = 60``, from the database), each frame showing
 the predictions for the nested window it depicts, as drawn by
-:func:`primes_in_intervals.plot_distribution_frame`.  Rendering takes a few
+:func:`primes_in_intervals.plot_distribution_frame`; and the cumulative
+animation for the starting points ``1 <= n <= N``, ``H = 45``, from
+``N = 10^4`` to ``N = 10^7``, drawn by
+:func:`primes_in_intervals.animate_cumulative`.  Rendering takes a few
 minutes.
 """
 
@@ -59,8 +61,18 @@ def write(X, path, **frame_kwargs):
     print("wrote", path)
 
 
+def cumulative(path="images/cumulative_H_45.gif", H=45, N_max=10**7, N_min=10**4):
+    """Animate the cumulative frequencies over ``1 <= n <= N`` for ``N_min <= N <= N_max``."""
+    models = ("F", "F0", "B_avg")
+    frames = pii.build_frames(pii.run_cumulative(H, N_max=N_max), models=models)
+    fig, anim = pii.animate_cumulative(frames, H, N_min=N_min, y_max=0.35, models=models)
+    pii.save_gif(anim, path, fps=8, dpi=80)
+    plt.close(fig)
+    print("wrote", path)
+
+
 def main() -> None:
-    """Build the three animations."""
+    """Build the four animations."""
     x17 = int(np.exp(17))
     C17 = list(range(x17 - 10**4, x17 + 10**4 + 1, 10**2))
 
@@ -108,6 +120,8 @@ def main() -> None:
         overlay=centred_overlay(x21, "[e^{21}]"),
         overlay_position=(0.70, 0.15),
     )
+
+    cumulative()
 
 
 if __name__ == "__main__":

@@ -111,7 +111,7 @@ for H in HH:
 pd.DataFrame.from_dict(rows, orient='index').rename_axis('H')
 ```
 
-The correction reduces $E_1$ at every length, by a factor of between two and five. On the whole it helps less as $H$ grows (the ratio rises from about $0.2$ at $H = 20$ to $0.44$ at $H = 200$, though not steadily), which is in keeping with the size of the correction: it is proportional to $\eta(H)$, which is about $(\log H)/H$ and so decreases as $H$ grows.
+The correction reduces $E_1$ at every length, by a factor of between two and five. On the whole it helps less as $H$ grows (the ratio rises from about $0.2$ at $H = 20$ to $0.44$ at $H = 200$, though not steadily).
 
 Now the plot, for $H = 90$. Besides $F$ and $F_0$ we draw the local expression $Q(m; \mu, H)$, evaluated at the single averaged parameter; the density of primes barely changes across a window this narrow, so the purple markers of $Q(m; \mu, H)$ sit almost exactly on the green markers of $F$.
 
@@ -135,11 +135,11 @@ The same window about $e^{20}$, now at the single length $H = 76$. The computati
 
 ```{python}
 #| eval: false
-N = int(np.exp(20))
-M = 10**5
+x0 = int(np.exp(20))
+K = 10**5
 H = 76
-A = N - M
-B = N + M
+A = x0 - K
+B = x0 + K
 step = 10**3
 C = list(range(A, B + 1, step))
 N_exp20_H_76 = intervals(C, H)
@@ -235,7 +235,7 @@ The animation, innermost interval outward:
 
 ## Supplementary examples {#sec-supplementary}
 
-Four further examples, at sizes where everything runs in seconds, so every cell below computes live: the Nachlass tables in full, the nested pipeline at $e^{17}$ for overlapping and for prime-starting intervals, and a closing remark on the parameters $\mu$ and $\lambda$. (These complement @sec-eg3display's one-line Goldschmidt table.)
+Four further examples, at sizes where everything runs in seconds, so every cell below computes live: the Nachlass tables in full, the nested pipeline at $e^{17}$ for overlapping and for prime-starting intervals, and the starting points $1 \le n \le N$ of the paper's main statement. (These complement @sec-eg3display's one-line Goldschmidt table.)
 
 ### Example 1 {#sec-eg1supp}
 
@@ -300,15 +300,11 @@ EXP17_76_NESTtable.tail(5)
 
 Let's compare the data (for $H = 76$) to the three predictions of @sec-compare. There is a pleasing parallel between them. The naive prediction based purely on Cramér's model is the Binomial distribution $\mathrm{Binom}(H,\mu/H)$, whose probability mass function, for $\mu$ of constant size and $H$ large, expands as
 $$
-f(m; H, \mu/H) = \binom{H}{m}\left(\frac{\mu}{H}\right)^m\left(1 - \frac{\mu}{H}\right)^{H - m} = \frac{e^{-\mu}\mu^m}{m!}\bigg[1 + \frac{Q_1(\mu,m)}{H} + \frac{Q_2(\mu,m)}{H^2} + \cdots\bigg],
-$$
-where each $Q_j(\mu,m)$ is a polynomial in $\mu$ and $m$, and in particular
-$$
-Q_1(\mu,m) = \frac{m - (m - \mu)^2}{2}.
+\binom{H}{m}\left(\frac{\mu}{H}\right)^m\left(1 - \frac{\mu}{H}\right)^{H - m} = \frac{e^{-\mu}\mu^m}{m!}\left\{1 - \frac{C_2(m; \mu)}{2H} + O\left(\frac{1}{H^2}\right)\right\}, \qquad C_2(m; u) = (m - u)^2 - m.
 $$
 The local expression of @sec-predictions is
 $$
-Q(m; \mu, H) = \frac{e^{-\mu}\mu^m}{m!}\left[1 + \frac{Q_1(\mu,m)}{H}\big(\log H + \log 2\pi + \gamma - 1\big)\right].
+Q(m; \mu, H) = \frac{e^{-\mu}\mu^m}{m!}\left\{1 - \frac{C_2(m; \mu)}{2H}\big(\log H + \log 2\pi + \gamma - 1\big)\right\}.
 $$
 So the correction has exactly the shape of the Binomial's first-order term, but it is larger by the factor $\log H + \log 2\pi + \gamma - 1$, which is about $5.7$ when $H = 76$. The primes deviate from the Poisson law in the same direction as the independent Bernoulli trials of Cramér's model do, but several times more strongly. The prediction $F$ averages this local expression over the window, and $F_0$ averages the Poisson term alone.
 
@@ -433,32 +429,53 @@ plt.show()
 
 ### Example 4 {#sec-eg4supp}
 
-A closing remark on the parameters. The prime number theorem says that the number of primes up to $N$ is well approximated by
-$$
-\int_2^N \frac{dt}{\log t} = \frac{N}{\log N} + \frac{N}{(\log N)^2} + \frac{2N}{(\log N)^3} + \cdots .
-$$
-Thus, the average density of primes up to $N$ is approximated by
-$$
-\frac{1}{N} \int_2^N \frac{dt}{\log t} = \frac{1}{\log N} + \frac{1}{(\log N)^2} + \frac{2}{(\log N)^3} + \cdots .
-$$
-(Indeed, Gauss's observation from his numerical data was that the density of primes around $n$ is around $1/\log n$, so that the number of primes up to $N$ may be estimated by integrating this density.) Notice that
-$$
-\frac{1}{\log N - 1} = \frac{1}{\log N} + \frac{1}{(\log N)^2} + \frac{1}{(\log N)^3} + \cdots,
-$$
-and so
-$$
-\frac{1}{N} \int_2^N \frac{dt}{\log t} = \frac{1}{\log N - 1} + O\left(\frac{1}{(\log N)^3}\right).
-$$
-This is why the paper's main statement, which concerns all the starting points $1 \le n \le N$, uses $\lambda = H/(\log N - 1)$: it is $H$ times the average density over the whole range, up to an error that is absorbed into the error terms. The averaged parameter $\mu$ of @sec-predictions is that average exactly, and $\lambda$ is its two-term approximation; replacing $\lambda$ by $H/(\log N - 1 + \epsilon(N))$, with $\epsilon(N) \to 0$ rapidly enough, does not change the form of the prediction.
+Every window so far has been narrow and far from the origin, so that the density of primes hardly changes across it. The paper's main statement concerns instead all the starting points $1 \le n \le N$, that is, $M = 0$, across which the density $1/\log t$ changes considerably. The predictions $F$ and $F_0$ average over that change exactly as they are defined, and nothing else about them needs adjusting. Here we take $N = 10^7$ and $H = 45$, which is $3(\log N - 1)$ rounded to the nearest integer, so that the mean number of primes in an interval is close to $3$.
 
-Note carefully what the $-1$ is. It is not a feature of the density near $N$, which is $1/\log N$; it arises from averaging $1/\log t$ over all $t$ up to $N$, most of which are smaller than $N$. For a window of starting points far from the origin, $M < n \le M + N$ with $M/N$ large, the average of $\log t$ over the window is $\log N + c(M/N)$, which is essentially the logarithm of the window's midpoint, with no $-1$ (@sec-predictions). This is why, in all the windows of this chapter, $\mu$ is $H/k$ for a window centred at $[e^k]$, rather than $H/(k - 1)$.
-
-The animation below was made with $x_0$ chosen so that the average density over the window $(x_0 - 10^6, x_0 + 10^6]$,
+In this setting $\lambda = H/(\log N - 1)$ (@sec-predictions). The prime number theorem gives
 $$
-\frac{1}{2\cdot 10^6} \int_{x_0 - 10^6}^{x_0 + 10^6} \frac{dt}{\log t},
+\frac{1}{N}\int_2^N \frac{dt}{\log t} = \frac{1}{\log N} + \frac{1}{(\log N)^2} + O\left(\frac{1}{(\log N)^3}\right) = \frac{1}{\log N - 1} + O\left(\frac{1}{(\log N)^3}\right),
 $$
-is very close to $1/20$, with $H = 100$, so that $\mu = 5$. Its dashed curves show the local expression at the averaged parameter, $Q(m; \mu, H)$, labelled there $F(H, m, \lambda)$ with $\lambda = \mu$, and the Binomial $\mathrm{Binom}(H, \mu/H)$. Over a window this narrow, $Q(m; \mu, H)$ and $F$ are practically indistinguishable.
+so $\lambda$ is a two-term approximation to $\mu$. The $-1$ comes from averaging $1/\log t$ over all $t$ up to $N$, most of which are smaller than $N$; the density near $N$ is $1/\log N$.
 
-![Animated distribution for intervals of length 100 about a centre chosen so that the average density over the window is very close to 1/20.](/images/li20_H_100.gif){fig-alt="Animation of the distribution of primes in intervals of length 100, the density parameter chosen via the logarithmic integral to be very close to one twentieth."}
+Besides $F$ and $F_0$ we evaluate the local expressions $Q(m; \lambda, H)$ and $Q(m; \mu, H)$, and the Binomial of Cramér's model with its varying density,
+$$
+B_{\mathrm{avg}}(m) = \frac{1}{N}\int_e^N \binom{H}{m}\left(\frac{1}{\log t}\right)^m\left(1 - \frac{1}{\log t}\right)^{H - m}dt,
+$$
+the lower limit $e$ keeping the probability $1/\log t$ at most $1$. With the density this far from constant, $\mathrm{Binom}(H, \mu/H)$ would be a poor stand-in for Cramér's model, and $B_{\mathrm{avg}}$ takes its place.
 
-What we should really like to do is, instead of fixing $H$ and considering windows narrow enough that the density is more or less constant across them, _fix_ $\lambda$, and let $H = \lambda \log n$ (say), where we are considering intervals of the form $(n, n + H]$. Then we'd have $\lambda/H = 1/\log n$, and this is what the prime number theorem (and Gauss) really say: the density of primes around an integer $n$ is $1/\log n$. Alas, for now, the argument leading to our prediction relies on the fact that $H$ is a fixed integer of size of order $\log N$. The other natural experiment keeps $H$ fixed and lets the starting points run over the whole range $1 \le n \le N$, with the predictions $F$ and $F_0$ averaging over the changing density, exactly as they are defined; the command-line tools `pii cumulative-run`, `pii cumulative-frames`, `pii cumulative-plot` and `pii cumulative-animate` carry it out.
+The function `run_cumulative` counts the primes in $(n, n + H]$ for $1 \le n \le N$ at each of a list of checkpoints $N$, in one pass, and `build_frames` computes and scores the predictions at each checkpoint. This takes a few seconds.
+
+```{python}
+from primes_in_intervals import build_frames, plot_cumulative_frame, run_cumulative
+
+H = 45
+cumulative = run_cumulative(H, checkpoints=[10**5, 10**6, 10**7])
+models = ('F', 'F0', 'B_avg', 'Q_lambda', 'Q_mu')
+frames = build_frames(cumulative, overlay_from=1, models=models)
+```
+
+Here is $E_1$ for each prediction and each checkpoint, on the global range of @sec-discrepancy, so that each sum covers essentially the whole of each prediction:
+
+```{python}
+pd.DataFrame({f.N: {'mu': f.predictions['mu'], 'lambda': f.predictions['lambda'],
+                    **{name: f.scores['global'][name]['E1'] for name in models}}
+              for f in frames}).T.rename_axis('N')
+```
+
+$F$ improves on both $F_0$ and $B_{\mathrm{avg}}$, by a factor of between three and four at $N = 10^7$. The local expressions $Q(m; \lambda, H)$ and $Q(m; \mu, H)$ do a little better still at these sizes: the average $F$ arises naturally in the argument, but it need not be the most accurate approximation at a particular finite $N$.
+
+The final checkpoint:
+
+```{python}
+plt.rcParams.update({'font.size': 22})
+fig, ax = plt.subplots(figsize=(22, 11))
+fig.suptitle('Primes in intervals')
+plot_cumulative_frame(ax, frames[-1], H, models=('F', 'F0', 'B_avg'), y_max=0.35)
+plt.show()
+```
+
+The animation shows the same comparison at every checkpoint from $N = 10^4$ to $N = 10^7$, the checkpoints about five per cent apart. As $N$ grows, the primes thin out and the mean falls, from about $5.5$ at the start to about $3$ at the end.
+
+![Animated cumulative distribution of primes in intervals of length 45 starting at 1 through N, as N grows from ten thousand to ten million.](/images/cumulative_H_45.gif){fig-alt="Animation of the proportion of starting points n from 1 to N for which the interval of length 45 after n contains m primes, as N grows from ten thousand to ten million, with the predictions F (green squares), F0 (blue triangles) and the averaged Binomial (teal crosses) marked at each m."}
+
+From the shell, `pii cumulative-run`, `pii cumulative-frames`, `pii cumulative-plot` and `pii cumulative-animate` carry out the same experiment for any $H$ and $N$, with the checkpoints running from $N = 1$ (see `docs/cli.md`).

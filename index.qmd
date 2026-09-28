@@ -1,21 +1,39 @@
 # TL;DR {#sec-tldr}
 
-The histogram shows the distribution of primes in intervals. Cramér's random model leads to a prediction for this distribution, shown in orange. We have another prediction, shown in green. In the data we've looked at, as here, our prediction seems to fare better than the one based on Cramér's model. 
+The histogram shows the distribution of primes in intervals. Cramér's random model leads to predictions for this distribution, shown in blue and orange. We have another prediction, shown in green. In the data we've looked at, as here, our prediction seems to fare better than the ones based on Cramér's model.
 
-As suggested in [@freiberg2018], our prediction is based on the Hardy-Littlewood prime tuples conjecture [@hardy_littlewood1923], inclusion-exclusion, and a precise estimate, due to Montgomery and Soundararajan [@montgomery_soundararajan2004], for a certain average involving the singular series of the prime tuples conjecture. 
+As suggested in [@freiberg2018], our prediction is based on the Hardy-Littlewood prime tuples conjecture [@hardy_littlewood1923], inclusion-exclusion, and a precise estimate, due to Montgomery and Soundararajan [@montgomery_soundararajan2004], for a certain average involving the singular series of the prime tuples conjecture.
 
-![](/images/N_exp21_H_60.gif){fig-alt="Animated histogram of the number of primes in intervals of length 60 near e^21, with the binomial prediction in orange and the prediction F in green."}
+![](/images/N_exp21_H_60.gif){fig-alt="Animated histogram of the number of primes in intervals of length 60 about e^21, the range of starting points growing outward from the centre, with the predictions F (green squares), F0 (blue triangles) and Binom(H, mu/H) (orange diamonds) marked at each m."}
 
-The prediction of Cramér's random model (orange) is, with $\lambda/H = 1/(\log N - 1)$ being the "probability" that an integer close to $N$ is prime (and we assume $\lambda \asymp 1$), is the Binomial distribution $\mathrm{Binom}(H,\lambda/H)$, whose probability mass function is given by
+For integers $H \ge 1$, $M \ge 0$ and $N \ge 2$, the histogram shows the proportion
 
-$$f(m; H,\lambda/H) = \binom{H}{m}\left(\frac{\lambda}{H}\right)^m\left(1 - \frac{\lambda}{H}\right)^{H - m} =  \frac{e^{-\lambda}\lambda^m}{m!}\bigg[1 + \frac{Q_1(\lambda,m)}{H} + \frac{Q_2(\lambda,m)}{H^2} + \cdots\bigg],$$
+$$P(m; H, M, N) = \frac{1}{N}\#\{M < n \le M + N : \pi(n + H) - \pi(n) = m\}$$
 
-where each $Q_j(\lambda,m)$ is a polynomial in $\lambda$ and $m$, and in particular, 
+of intervals $(n, n + H]$, with $M < n \le M + N$, that contain exactly $m$ primes. In the animation, $H = 60$ and the range of starting points grows outward from $x_0 = [e^{21}]$: the text box writes it as $x_0 - K < a \le x_0 + K$, so that $M = x_0 - K$ and $N = 2K$.
 
-$$Q_1(\lambda,m) = \frac{m - (m - \lambda)^2}{2}.$$
+In Cramér's model, an integer $t$ is "prime" with probability $1/\log t$. Averaging $H/\log t$ over the range gives
 
-Our prediction (green) is 
+$$\mu = \frac{H}{N}\int_{\max\{2, M\}}^{M + N}\frac{dt}{\log t},$$
 
-$$F(H,m,\lambda) = \frac{e^{-\lambda}\lambda^m}{m!}\left[1 + \frac{Q_1(\lambda,m)}{H}\left(\log H + (\log 2\pi + \gamma - 1)\right) \right],$$
+the expected number of "primes" in an interval of length $H$. Writing $p_m(u) = e^{-u}u^m/m!$ for the Poisson probability, Cramér's model leads to the averaged Poisson prediction (blue)
 
-in agreement with Cramér's model only as a first-order approximation. The secondary term in our prediction is more in line with our observation that the distribution of the numerical data is more "pinched up" around the center: there is more of a _bias_ towards the mean $\lambda$ than is suggested by the Binomial distribution. (Note that $F(H,m,\lambda)$ is not a probability mass function as its sum over $m$ is only close to $1$, but not equal to $1$. $F(H,m,\lambda)$ is an _approximation_ to a probability mass function, viz. the probability that the interval $(a, a + H]$ of length $H$, $a$ chosen uniformly at random from $(N - M, N + M]$, contains exactly $m$ primes. Whether one can find modifications to the higher order terms in the expansion of $f(m; H,\lambda/H)$, that lead to even better predictions for the distribution of primes in intervals, is certainly a tantalizing question, worth pursuing.)
+$$F_0(m; H, M, N) = \frac{1}{N}\int_{\max\{2, M\}}^{M + N} p_m\left(\frac{H}{\log t}\right)dt.$$
+
+Treating the probability as constant across the range gives instead the Binomial distribution $\mathrm{Binom}(H,\mu/H)$ (orange), whose probability mass function satisfies, for fixed $m$ and $\mu \asymp 1$,
+
+$$\binom{H}{m}\left(\frac{\mu}{H}\right)^m\left(1 - \frac{\mu}{H}\right)^{H - m} = p_m(\mu)\left\{1 - \frac{C_2(m; \mu)}{2H} + O(H^{-2})\right\}, \qquad C_2(m; u) = (m - u)^2 - m.$$
+
+Our prediction (green) is
+
+$$F(m; H, M, N) = \frac{1}{N}\int_{\max\{2, M\}}^{M + N} Q\left(m; \frac{H}{\log t}, H\right)dt,$$
+
+where
+
+$$Q(m; u, H) = p_m(u)\left\{1 - \frac{\eta(H)}{2}C_2(m; u)\right\}, \qquad \eta(H) = \frac{\log H + \log 2\pi + \gamma - 1}{H},$$
+
+and $\gamma$ is the Euler-Mascheroni constant. The correction has the same polynomial $C_2(m; u)$ as the Binomial, but its coefficient is larger by a factor asymptotic to $\log H$, so our prediction agrees with Cramér's model only as a first-order approximation. The correction increases the Poisson probability where $(m - u)^2 < m$ and decreases it elsewhere. This is more in line with our observation that the distribution of the numerical data is more "pinched up" around the center: there is more of a _bias_ towards the mean than is suggested by the Binomial distribution. Assuming a uniform version of the Hardy-Littlewood conjecture, one can show that for fixed $m$, $M = 0$, and $H$ of order $\log N$,
+
+$$P(m; H, 0, N) = Q(m; \lambda, H) + o\left(\frac{1}{H}\right), \qquad \lambda = \frac{H}{\log N - 1},$$
+
+as $N \to \infty$. (Note that $F(m; H, M, N)$ is not a probability mass function: it can be slightly negative in the tails, as in the animation, and its sum over $m$ is $(M + N - \max\{2, M\})/N$, which equals $1$ only when $M \ge 2$. $F(m; H, M, N)$ is an _approximation_ to a probability mass function, viz. the probability that the interval $(n, n + H]$ of length $H$, $n$ chosen uniformly at random from $(M, M + N]$, contains exactly $m$ primes. Whether one can find modifications to the higher order terms in the expansion of the Binomial probability that lead to even better predictions for the distribution of primes in intervals is a tantalizing question, worth pursuing.)

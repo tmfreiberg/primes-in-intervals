@@ -131,7 +131,7 @@ end - start
 
 We won't want to re-do a computation that takes a lot of time and memory, so we store our data in a database for future use.
 
-The database is a SQLite file, `data/primes_in_intervals_db`, with one table per interval type: `disjoint_raw`, `overlap_raw`, and `prime_start_raw`. Each table has the same shape. The first column is $A$ (lower bound), the second $B$ (upper bound), and the third $H$ (interval length), where we consider intervals of the form $(a, a + H]$ for $a$ in $(A, B]$; these three columns constitute the table's primary key. The next `max_primes + 1` columns, `m0` through `m100`, contain the number of such intervals with $m$ primes, where `max_primes = 100` will easily cover any situation we will be interested in. So $A$, $B$, $H$, `m0`, `m1`, ..., `m100` are columns $0, 1, 2, 3, \ldots, 103$ respectively: `mi` is column $i + 3$.
+The database is a SQLite file, `data/primes_in_intervals_db`, with one table per interval type: `disjoint_raw`, `overlap_raw`, and `prime_start_raw`. Each table has the same shape. The first column is $A$ (lower bound), the second $B$ (upper bound), and the third $H$ (interval length), where we consider intervals of the form $(a, a + H]$ for $a$ in $(A, B]$; these three columns constitute the table's primary key. The next `max_primes + 1` columns, `m0` through `m100`, contain the number of such intervals with $m$ primes, where `max_primes = 100` will easily cover any situation we will be interested in; should a dataset ever need more, `save` adds further columns `m101`, `m102`, ... first, so no count is dropped. So $A$, $B$, $H$, `m0`, `m1`, ..., `m100` are columns $0, 1, 2, 3, \ldots, 103$ respectively: `mi` is column $i + 3$.
 
 The tables are created by `ensure_tables` in `src/primes_in_intervals/dataio.py`, whose core is:
 
@@ -163,7 +163,7 @@ In case we mess up and need to start again:
 # conn.close()
 ```
 
-The `save` function (in `src/primes_in_intervals/dataio.py`) stores a dataset in the table matching its `interval_type`. For each checkpoint `C[k]` beyond the first, it inserts one row of the form `C[0], C[k], H, g(0), g(1), ..., g(max_primes)`, padding with zeros the values of $m$ that the dataset does not mention. The insertion is `INSERT OR IGNORE`, so a row whose `(lower_bound, upper_bound, interval_length)` key already exists is left alone: saving the same dataset twice is harmless, and the cells below can be re-run freely.
+The `save` function (in `src/primes_in_intervals/dataio.py`) stores a dataset in the table matching its `interval_type`. For each checkpoint `C[k]` beyond the first, it inserts one row of the form `C[0], C[k], H, g(0), g(1), ..., g(max_primes)`, padding with zeros the values of $m$ that the dataset does not mention. A row whose `(lower_bound, upper_bound, interval_length)` key already exists is compared with the stored one. If the counts are identical the row is skipped, so saving the same dataset twice is harmless, and the cells below can be re-run freely. If they differ, `save` raises an error and writes nothing, unless it is told to keep the stored rows (`on_conflict='skip'`) or to overwrite them (`on_conflict='replace'`). Each row written is also recorded, with the version of the counting code and the time, in a small `provenance` table. `save` returns a summary of what it did.
 
 ### Example 1 {#sec-eg1save}
 
@@ -363,7 +363,7 @@ Input a dataset with data corresponding to checkpoints $[C_0,\ldots,C_K]$, where
 
 $$(C_k, C_{k + 1}], (C_{k-1}, C_{k + 2}], \ldots, (C_0, C_K].$$
 
-Note that each interval is contained in the next, so these are "nested" intervals. If the $C$'s form an arithmetic progression, then each of the nested intervals share a common midpoint, $N$ (say). Thus, the density of primes in these intervals is approximately $1/(\log N - 1)$. However, this gets worse and worse as an approximation for all primes in an interval as the interval get wider. Thus, there is a trade-off between having a better approximation to the density of primes in an interval, and the number of datapoints (length of the interval). It will be interesting to see how these play off against each other.
+Note that each interval is contained in the next, so these are "nested" intervals. If the $C$'s form an arithmetic progression, then the nested intervals share a common midpoint, $x_0$ (say). Thus, the density of primes in these intervals is approximately $1/\log x_0$. However, this gets worse and worse as an approximation as the interval gets wider. A single density parameter therefore involves a trade-off between having a better approximation to the density of primes in an interval, and the number of datapoints (length of the interval). The predictions $F$ and $F_0$ of @sec-compare avoid the trade-off, since they average over the changing density across each interval.
 
 ```python
 def nest(dataset):
