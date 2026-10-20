@@ -1,8 +1,10 @@
 name: Publish Quarto book
 
-# Build the book and deploy it to GitHub Pages on every push to main. The book
-# imports the installed primes_in_intervals package and executes its fast code
-# cells; slow computations are embedded as precomputed images from images/.
+# Build the book and deploy it to GitHub Pages on every push to main. The
+# install and the render are those of the "book" job in check.yml: the
+# environment from uv.lock and the same pinned Quarto. The book imports the
+# installed primes_in_intervals package and executes its code cells; slow
+# computations are embedded as precomputed images from images/.
 
 on:
   push:
@@ -27,24 +29,23 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v10.3.0
         with:
           python-version: "3.12"
 
-      - name: Install the package and the notebook dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .
-          pip install jupyter nbclient ipykernel
+      - name: Install from the lock
+        run: uv sync --locked --extra dev
 
       - name: Set up Quarto
         uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.9.38
 
-      # No path: is given, so Quarto renders the project rooted at _quarto.yml
-      # in the repository root, writing the site to _book.
+      # Quarto renders the project rooted at _quarto.yml in the repository
+      # root, writing the site to _book.
       - name: Render the book
-        uses: quarto-dev/quarto-actions/render@v2
+        run: uv run --locked quarto render
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
