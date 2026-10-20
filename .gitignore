@@ -1,29 +1,62 @@
-# Python
+# ---- Python ----
 __pycache__/
-*.pyc
-*.egg-info/
-.mypy_cache/
-.pytest_cache/
-.ruff_cache/
+*.py[cod]
 .venv/
+venv/
+*.egg-info/
+build/
+dist/
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.env
 
-# Quarto
-/.quarto/
-/_book/
-/_freeze/
+# ---- Quarto ----
+# Rendered output and caches. _freeze/ is ignored here; a project that
+# commits it on purpose (so CI can render without executing) drops that
+# line. An ignored _freeze/ is regenerable only by executing the notebooks.
+_book/
+_site/
+.quarto/
+_freeze/
 site_libs/
-**/*.quarto_ipynb
-
-# Quarto scratch output from rendering a single file rather than the book
+# Quarto's intermediate notebooks, chapter.quarto_ipynb_1 included. Quarto
+# appends its own "**/*.quarto_ipynb" line on render; leave it at the end.
+*.quarto_ipynb*
+# Output of rendering a single file rather than the whole book.
 book/*.html
 book/*_files/
 /index.html
 /index_files/
 
-# Generated media (the book draws these live; keep only the seven in images/)
+# ---- Generated media ----
+# Animations are written as GIFs into images/; video output is never kept.
 *.mp4
+
 # ---- Local working material ----
-# Scratch space, drafts, and reference material kept alongside the project but
-# deliberately outside version control. Contents vary by repo and are not
-# reproducible from history -- they're covered by file-level backup instead.
+# Working material kept beside the project, excluded from version control
+# by this file (not by .git/info/exclude).
 excluded/
+
+# ---- Update zips ----
+# Temporary archives, extracted in place and then deleted.
+/*-update-*.zip
+
+# ---- Local notes ----
+# A separate local repository, not part of this project.
+/primes-in-intervals-private/
+# Backstop: if a note lands here by mistake, git will not take it.
+/handoff.txt
+/backlog.txt
+/backup.txt
+/devnotes.txt
+
+# ---- OS ----
+.DS_Store
+Thumbs.db
+desktop.ini
+
+**/*.quarto_ipynb
