@@ -17,9 +17,10 @@ timings = [line for line in log.splitlines() if line.startswith("H = ") or line.
 checks = (OUT / "checks.txt").read_text()
 cases = (OUT / "cases.txt").read_text()
 s = pii.QuadratureSettings()
+dirty_note = " (working tree had uncommitted changes)" if dirty else ""
 text = f"""# Primes in intervals: cumulative experiment, M = 0
 
-Code: primes-in-intervals {pii.__version__}, commit {commit}{" (working tree had uncommitted changes)" if dirty else ""}
+Code: primes-in-intervals {pii.__version__}, commit {commit}{dirty_note}
 Python {platform.python_version()} on {platform.platform()}
 Counter: {pii.COUNTER_VERSION}
 Formulas: {pii.FORMULA_VERSION}

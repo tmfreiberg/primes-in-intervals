@@ -34,7 +34,7 @@ for N, H, kappa in cases:
     ).fetchone()
     conn.close()
     stored = {m - 3: v for m, v in enumerate(row) if m >= 3 and v}
-    table = {int(m): int(c) for m, c in zip(long["m"], long["count"]) if c}
+    table = {int(m): int(c) for m, c in zip(long["m"], long["count"], strict=True) if c}
     ok = counts == stored == table and sum(counts.values()) == N
     status = "OK" if ok else "FAILED"
     checks.append(f"N={N} H={H}: JSON = database = CSV, total {sum(counts.values())} = N: {status}")
