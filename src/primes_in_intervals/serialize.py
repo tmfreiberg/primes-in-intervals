@@ -83,8 +83,8 @@ def _encode(value: Any) -> Any:
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
     # Third-party scalars: NumPy integers and floats register with the
-    # numbers ABCs; SymPy floats (the Montgomery-Soundararajan constant
-    # reaches comparison values as one) do not, but expose __float__.
+    # numbers ABCs; others, a SymPy Float for instance, do not, but expose
+    # __float__.
     if isinstance(value, numbers.Integral):
         return int(value)
     if isinstance(value, numbers.Real):

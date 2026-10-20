@@ -15,8 +15,9 @@ dependencies = [
     "numpy",
     "pandas",
     "scipy",
-    "sympy",
     "matplotlib",
+    # The 30-digit cross-check of the quadrature (pii quadrature-check).
+    "mpmath",
     # pandas needs jinja2 for the .style accessor, which display() and
     # show_table() use whenever a caption is attached (their default).
     "jinja2",
@@ -31,15 +32,17 @@ classifiers = [
 ]
 
 [project.optional-dependencies]
-tables = ["dataframe_image"]
 dev = [
     "pytest",
     "ruff",
     "mypy",
-    "jupyter>=1.1.1",
+    # The tests check primes against sympy.
+    "sympy",
+    # What Quarto needs to execute the book's Python cells.
     "ipykernel>=7.3.0",
     "nbformat>=5.11.1",
     "nbclient>=0.11.0",
+    "pyyaml",
 ]
 
 [project.scripts]
@@ -76,8 +79,16 @@ no_implicit_optional = true
 check_untyped_defs = true
 
 [[tool.mypy.overrides]]
-module = ["scipy.*", "sympy.*", "matplotlib.*", "pandas.*", "dataframe_image.*", "mpmath.*"]
+module = ["scipy.*", "sympy.*", "matplotlib.*", "pandas.*", "mpmath.*"]
 ignore_missing_imports = true
+
+[tool.deptry]
+known_first_party = ["primes_in_intervals"]
+optional_dependencies_dev_groups = ["dev"]
+
+[tool.deptry.per_rule_ignores]
+# Not imported: pandas uses it for the .style accessor (see dependencies).
+DEP002 = ["jinja2"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

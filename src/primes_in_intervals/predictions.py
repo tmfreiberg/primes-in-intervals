@@ -56,7 +56,6 @@ from dataclasses import dataclass, field
 from typing import Any
 
 import numpy as np
-import sympy
 from scipy.special import binom, expi, gamma, gammaln
 
 from primes_in_intervals.quadrature import QuadratureResult, QuadratureSettings, log_average
@@ -91,11 +90,12 @@ FORMULA_VERSION = (
     "manuscript-2026-09: eta(H) = (log H + log 2pi + gamma - 1)/H; F, F0 on [max(2,M), M+N]"
 )
 
+#: Euler's constant gamma, to double precision.
+_EULER_GAMMA = 0.5772156649015329
+
 #: The constant ``1 - gamma - log(2*pi)`` = -1.41509...  (kept under its
 #: historical name; ``eta(H) = (log H - MS) / H``).
-MS = 1 - sympy.EulerGamma.evalf() - np.log(2 * (np.pi))
-
-_EULER_GAMMA = float(sympy.EulerGamma.evalf(30))
+MS = 1 - _EULER_GAMMA - math.log(2 * math.pi)
 
 
 # --------------------------------------------------------------------------
