@@ -2,9 +2,19 @@
 
 from __future__ import annotations
 
-from sympy import isprime, prime
-
 import primes_in_intervals as pii
+
+
+def _is_prime(n: int) -> bool:
+    """Trial division: slow, but independent of the package's sieves."""
+    if n < 2:
+        return False
+    d = 2
+    while d * d <= n:
+        if n % d == 0:
+            return False
+        d += 1
+    return True
 
 
 def test_first_primes():
@@ -15,9 +25,8 @@ def test_first_primes():
 def test_thousandth_prime_and_primality():
     P = pii.postponed_sieve()
     primes = [next(P) for _ in range(1000)]
-    assert primes[-1] == prime(1000)  # 7919
-    assert all(isprime(p) for p in primes[::37])
-    assert primes == sorted(set(primes))
+    assert primes[-1] == 7919  # the 1000th prime
+    assert primes == [n for n in range(2, 7920) if _is_prime(n)]
 
 
 def test_next_prime_readme_values():
