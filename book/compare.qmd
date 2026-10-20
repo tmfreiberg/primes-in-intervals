@@ -4,7 +4,7 @@ How many intervals in a range should contain a given number of primes? This chap
 
 ## The predictions {#sec-predictions}
 
-A word on notation first. Elsewhere in the book, and in much of the literature on the subject, a window of starting points is written $N - M < a \le N + M$, centred at $N$. Here we switch to the notation of the paper: the starting points run over
+A word on notation first. Elsewhere in the book, and in much of the literature on the subject, a window of starting points is written $N - M < a \le N + M$, centred at $N$. Here we switch to the notation of the paper [@freiberg2026]: the starting points run over
 $$
 M < n \le M + N,
 $$

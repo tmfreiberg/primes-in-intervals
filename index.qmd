@@ -2,7 +2,7 @@
 
 The histogram shows the distribution of primes in intervals. Cramér's random model leads to predictions for this distribution, shown in blue and orange. We have another prediction, shown in green. In the data we've looked at, as here, our prediction seems to fare better than the ones based on Cramér's model.
 
-As suggested in [@freiberg2018], our prediction is based on the Hardy-Littlewood prime tuples conjecture [@hardy_littlewood1923], inclusion-exclusion, and a precise estimate, due to Montgomery and Soundararajan [@montgomery_soundararajan2004], for a certain average involving the singular series of the prime tuples conjecture.
+As suggested in [@freiberg2018], our prediction is based on the Hardy-Littlewood prime tuples conjecture [@hardy_littlewood1923], inclusion-exclusion, and a precise estimate, due to Montgomery and Soundararajan [@montgomery_soundararajan2004], for a certain average involving the singular series of the prime tuples conjecture. The prediction is derived in [@freiberg2026].
 
 ![](/images/N_exp21_H_60.gif){fig-alt="Animated histogram of the number of primes in intervals of length 60 about e^21, the range of starting points growing outward from the centre, with the predictions F (green squares), F0 (blue triangles) and Binom(H, mu/H) (orange diamonds) marked at each m."}
 
@@ -32,7 +32,7 @@ where
 
 $$Q(m; u, H) = p_m(u)\left\{1 - \frac{\eta(H)}{2}C_2(m; u)\right\}, \qquad \eta(H) = \frac{\log H + \log 2\pi + \gamma - 1}{H},$$
 
-and $\gamma$ is the Euler-Mascheroni constant. The correction has the same polynomial $C_2(m; u)$ as the Binomial, but its coefficient is larger by a factor asymptotic to $\log H$, so our prediction agrees with Cramér's model only as a first-order approximation. The correction increases the Poisson probability where $(m - u)^2 < m$ and decreases it elsewhere. This is more in line with our observation that the distribution of the numerical data is more "pinched up" around the center: there is more of a _bias_ towards the mean than is suggested by the Binomial distribution. Assuming a uniform version of the Hardy-Littlewood conjecture, one can show that for fixed $m$, $M = 0$, and $H$ of order $\log N$,
+and $\gamma$ is the Euler-Mascheroni constant. The correction has the same polynomial $C_2(m; u)$ as the Binomial, but its coefficient is larger by a factor asymptotic to $\log H$, so our prediction agrees with Cramér's model only as a first-order approximation. The correction increases the Poisson probability where $(m - u)^2 < m$ and decreases it elsewhere. This is more in line with our observation that the distribution of the numerical data is more "pinched up" around the center: there is more of a _bias_ towards the mean than is suggested by the Binomial distribution. Assuming a uniform version of the Hardy-Littlewood conjecture, one can show [@freiberg2026] that for fixed $m$, $M = 0$, and $H$ of order $\log N$,
 
 $$P(m; H, 0, N) = Q(m; \lambda, H) + o\left(\frac{1}{H}\right), \qquad \lambda = \frac{H}{\log N - 1},$$
 

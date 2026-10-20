@@ -110,8 +110,12 @@ To cite the exact code behind a set of results, use the version DOI:
 GitHub's "Cite this repository" button reads the same information from
 `CITATION.cff`.
 
+For the mathematics behind the predictions, cite the paper:
+
+> Freiberg, T. *Biases in the distribution of primes in short intervals*. arXiv:2609.33692 [math.NT], 2026. https://doi.org/10.48550/arXiv.2609.33692
+
 ## About
 
-This is a rewrite of a 2023 project, undertaken as a self-directed exercise in number theory and Python. The original was a single script with an expository README; this version packages the code into modules with tests and a command-line interface, and moves the exposition into a Quarto book. In 2026 the predictions were brought into line with the author's paper on the subject. The refinement $F$ is the author's own; its derivation, conditional on a uniform form of the Hardy-Littlewood prime tuples conjecture, is in a preprint that has not been peer reviewed.
+This is a rewrite of a 2023 project, undertaken as a self-directed exercise in number theory and Python. The original was a single script with an expository README; this version packages the code into modules with tests and a command-line interface, and moves the exposition into a Quarto book. In 2026 the predictions were brought into line with the author's paper on the subject. The refinement $F$ is the author's own; its derivation, conditional on a uniform form of the Hardy-Littlewood prime tuples conjecture, is in a preprint that has not been peer reviewed: [arXiv:2609.33692](https://arxiv.org/abs/2609.33692).
 
 Author: Tristan Freiberg.

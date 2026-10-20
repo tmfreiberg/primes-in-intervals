@@ -27,3 +27,13 @@ identifiers:
   - type: swh
     value: "swh:1:rev:2a0b2e0ff8a137af1c325491901f7993cc95778b"
     description: "Software Heritage identifier of the 2023-08-05 commit"
+references:
+  - type: article
+    title: "Biases in the distribution of primes in short intervals"
+    authors:
+      - family-names: Freiberg
+        given-names: Tristan
+    year: 2026
+    doi: 10.48550/arXiv.2609.33692
+    url: "https://arxiv.org/abs/2609.33692"
+    notes: "arXiv preprint 2609.33692 [math.NT]; the mathematics behind the predictions"
