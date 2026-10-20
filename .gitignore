@@ -20,9 +20,11 @@ htmlcov/
 # line. An ignored _freeze/ is regenerable only by executing the notebooks.
 _book/
 _site/
-.quarto/
 _freeze/
 site_libs/
+# Quarto checks on every render for the two lines "/.quarto/" and
+# "**/*.quarto_ipynb", exactly as written, and appends any that is missing.
+/.quarto/
 # Quarto's intermediate notebooks, chapter.quarto_ipynb_1 included. Quarto
 # appends its own "**/*.quarto_ipynb" line on render; leave it at the end.
 *.quarto_ipynb*
