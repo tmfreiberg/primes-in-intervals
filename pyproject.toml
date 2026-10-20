@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "primes-in-intervals"
-version = "1.1.0"
+version = "1.2.0"
 description = "Counting primes in intervals: computation, SQLite storage, statistics, predictions, and animations"
 readme = "README.md"
 license = "MIT"

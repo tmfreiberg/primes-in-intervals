@@ -137,7 +137,7 @@ from primes_in_intervals.sieve import next_prime, postponed_sieve, prime_pi
 from primes_in_intervals.statistics import analyze, dictionary_sort, dictionary_statistics
 from primes_in_intervals.transforms import extract, nest, partition, unpartition
 
-__version__ = "1.1.0"
+__version__ = "1.2.0"
 
 __all__ = [
     "COMPARISON_LABEL",
