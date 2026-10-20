@@ -194,8 +194,18 @@ class TestRetrieveCommand:
         db = tmp_path / "two"
         for start in ["0", "5000"]:
             argv = [
-                "intervals", "--range", start, f"{start}+1000", "500", "-H", "20",
-                "--save", "--db", str(db), "--json", str(tmp_path / "sink.json"),
+                "intervals",
+                "--range",
+                start,
+                f"{start}+1000",
+                "500",
+                "-H",
+                "20",
+                "--save",
+                "--db",
+                str(db),
+                "--json",
+                str(tmp_path / "sink.json"),
             ]
             assert cli.main(argv) == 0
         # Summaries alone: fine without an index.
@@ -210,9 +220,17 @@ class TestRetrieveCommand:
 
     def test_pipeline_one_shot(self, cli_workspace, capsys):
         argv = [
-            "retrieve", "30", "--db", str(cli_workspace["db"]),
-            "--nest", "--analyze", "--compare", "--winners",
-            "--display", "--view", "winners",
+            "retrieve",
+            "30",
+            "--db",
+            str(cli_workspace["db"]),
+            "--nest",
+            "--analyze",
+            "--compare",
+            "--winners",
+            "--display",
+            "--view",
+            "winners",
         ]
         assert cli.main(argv) == 0
         out = capsys.readouterr().out
@@ -233,8 +251,16 @@ class TestTransformCommands:
         # ...must agree with the one-shot pipeline.
         one_shot = tmp_path / "oneshot.json"
         argv = [
-            "retrieve", "30", "--db", str(cli_workspace["db"]),
-            "--nest", "--analyze", "--compare", "--winners", "--json", str(one_shot),
+            "retrieve",
+            "30",
+            "--db",
+            str(cli_workspace["db"]),
+            "--nest",
+            "--analyze",
+            "--compare",
+            "--winners",
+            "--json",
+            str(one_shot),
         ]
         assert cli.main(argv) == 0
         capsys.readouterr()
@@ -246,8 +272,12 @@ class TestTransformCommands:
         base = read_dataset_json(cli_workspace["flat"])
         C = list(base["data"].keys())
         argv = [
-            "extract", "--from-json", str(cli_workspace["flat"]),
-            "--narrow", str(C[2]), str(C[-2]),
+            "extract",
+            "--from-json",
+            str(cli_workspace["flat"]),
+            "--narrow",
+            str(C[2]),
+            str(C[-2]),
         ]
         assert cli.main(argv) == 0
         narrowed = json.loads(capsys.readouterr().out)
@@ -260,9 +290,10 @@ class TestTransformCommands:
 
     def test_partition_then_unpartition(self, cli_workspace, tmp_path, capsys):
         part = tmp_path / "part.json"
-        assert cli.main(
-            ["partition", "--from-json", str(cli_workspace["flat"]), "--json", str(part)]
-        ) == 0
+        assert (
+            cli.main(["partition", "--from-json", str(cli_workspace["flat"]), "--json", str(part)])
+            == 0
+        )
         ds = read_dataset_json(part)
         assert "partition" in ds
         # Remove 'data' and rebuild it through the CLI.
@@ -272,8 +303,9 @@ class TestTransformCommands:
         assert cli.main(["unpartition", "--from-json", str(stripped)]) == 0
         rebuilt = json.loads(capsys.readouterr().out)
         original = read_dataset_json(cli_workspace["flat"])
-        assert {int(k): {int(m): v for m, v in row.items()} for k, row in rebuilt["data"].items()} \
-            == original["data"]
+        assert {
+            int(k): {int(m): v for m, v in row.items()} for k, row in rebuilt["data"].items()
+        } == original["data"]
 
     def test_nest_tuple_keys_in_json(self, cli_workspace):
         text = cli_workspace["nested"].read_text(encoding="utf-8")
@@ -299,8 +331,12 @@ class TestDisplayCommand:
 
     def test_no_description_and_csv(self, cli_workspace, capsys):
         argv = [
-            "display", "--from-json", str(cli_workspace["flat"]),
-            "--no-description", "--format", "csv",
+            "display",
+            "--from-json",
+            str(cli_workspace["flat"]),
+            "--no-description",
+            "--format",
+            "csv",
         ]
         assert cli.main(argv) == 0
         out = capsys.readouterr().out
@@ -357,8 +393,14 @@ class TestStorageCommands:
         db = tmp_path / "from_env" / "db"
         monkeypatch.setenv("PII_DB", str(db))
         argv = [
-            "intervals", "--checkpoints", "0,300,600", "-H", "20",
-            "--save", "--json", str(tmp_path / "sink.json"),
+            "intervals",
+            "--checkpoints",
+            "0,300,600",
+            "-H",
+            "20",
+            "--save",
+            "--json",
+            str(tmp_path / "sink.json"),
         ]
         assert cli.main(argv) == 0
         assert db.exists()
@@ -370,8 +412,13 @@ class TestPlotCommands:
     def test_plot_nested_last(self, cli_workspace, tmp_path, capsys):
         out = tmp_path / "frame.png"
         argv = [
-            "plot", "--from-json", str(cli_workspace["nested"]),
-            "-o", str(out), "--dpi", "35",
+            "plot",
+            "--from-json",
+            str(cli_workspace["nested"]),
+            "-o",
+            str(out),
+            "--dpi",
+            "35",
         ]
         assert cli.main(argv) == 0
         assert out.exists() and out.stat().st_size > 0
@@ -382,16 +429,28 @@ class TestPlotCommands:
         lo, hi = next(iter(nested["nested_interval_data"]))
         out = tmp_path / "inner.png"
         argv = [
-            "plot", "--from-json", str(cli_workspace["nested"]),
-            "--checkpoint", f"{lo},{hi}", "-o", str(out), "--dpi", "35",
+            "plot",
+            "--from-json",
+            str(cli_workspace["nested"]),
+            "--checkpoint",
+            f"{lo},{hi}",
+            "-o",
+            str(out),
+            "--dpi",
+            "35",
         ]
         assert cli.main(argv) == 0
         assert out.exists()
 
     def test_plot_unknown_checkpoint_fails(self, cli_workspace, tmp_path, capsys):
         argv = [
-            "plot", "--from-json", str(cli_workspace["flat"]),
-            "--checkpoint", "123", "-o", str(tmp_path / "x.png"),
+            "plot",
+            "--from-json",
+            str(cli_workspace["flat"]),
+            "--checkpoint",
+            "123",
+            "-o",
+            str(tmp_path / "x.png"),
         ]
         assert cli.main(argv) == 1
         assert "not in dataset" in capsys.readouterr().err
@@ -399,8 +458,17 @@ class TestPlotCommands:
     def test_animate_gif(self, cli_workspace, tmp_path):
         out = tmp_path / "anim.gif"
         argv = [
-            "animate", "--from-json", str(cli_workspace["nested"]),
-            "-o", str(out), "--max-frames", "2", "--dpi", "30", "--fps", "5",
+            "animate",
+            "--from-json",
+            str(cli_workspace["nested"]),
+            "-o",
+            str(out),
+            "--max-frames",
+            "2",
+            "--dpi",
+            "30",
+            "--fps",
+            "5",
         ]
         assert cli.main(argv) == 0
         assert out.exists() and out.stat().st_size > 0
@@ -414,9 +482,7 @@ class TestErrorsAndMeta:
 
     def test_both_inputs_is_usage_error(self, cli_workspace):
         with pytest.raises(SystemExit) as exc:
-            cli.main(
-                ["nest", "--from-json", str(cli_workspace["flat"]), "--retrieve", "30"]
-            )
+            cli.main(["nest", "--from-json", str(cli_workspace["flat"]), "--retrieve", "30"])
         assert exc.value.code == 2
 
     def test_bad_expression_is_usage_error(self):
@@ -426,13 +492,15 @@ class TestErrorsAndMeta:
 
     def test_range_and_checkpoints_conflict(self):
         with pytest.raises(SystemExit) as exc:
-            cli.main(["intervals", "-H", "20", "--range", "0", "100", "50",
-                      "--checkpoints", "0,100"])
+            cli.main(
+                ["intervals", "-H", "20", "--range", "0", "100", "50", "--checkpoints", "0,100"]
+            )
         assert exc.value.code == 2
 
     def test_version(self, capsys):
         assert cli.main(["version"]) == 0
         assert capsys.readouterr().out.strip() == pii.__version__
+
 
 class TestManuscriptCommands:
     def test_eta_and_predict(self, capsys):

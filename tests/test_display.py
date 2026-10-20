@@ -42,9 +42,7 @@ class TestFlatViews:
         for m in ds["data"][C[-1]]:
             assert df.loc["totals", m] == ds["data"][C[-1]][m]
         # And the prime tally column really tallies primes.
-        assert df.loc["totals", "prime_tally"] == sum(
-            m * v for m, v in ds["data"][C[-1]].items()
-        )
+        assert df.loc["totals", "prime_tally"] == sum(m * v for m, v in ds["data"][C[-1]].items())
 
     def test_comparison_views(self, analyzed_overlap):
         pii.compare(analyzed_overlap)

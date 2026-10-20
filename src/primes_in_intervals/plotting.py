@@ -834,8 +834,7 @@ def plot_discrepancies(
         m_T = int(scored["m_T"].max())
         range_text = f", summed over $m = 0, \\ldots, m_T$ with $m_T \\leq {m_T}$"
     fig.suptitle(
-        rf"discrepancy measures against $N$, $H = {int(summary['H'].iloc[0])}$"
-        + range_text
+        rf"discrepancy measures against $N$, $H = {int(summary['H'].iloc[0])}$" + range_text
     )
     return fig
 

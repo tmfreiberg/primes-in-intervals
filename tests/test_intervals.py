@@ -7,16 +7,46 @@ import primes_in_intervals as pii
 # The full frequency dictionary for disjoint centades between 2 and 3 million,
 # as printed in the exposition.
 DISJOINT_2_3_MILLION = {
-    0: 1, 1: 25, 2: 97, 3: 337, 4: 776, 5: 1408, 6: 1881, 7: 1995, 8: 1525,
-    9: 1035, 10: 559, 11: 227, 12: 98, 13: 28, 14: 6, 15: 1, 17: 1,
+    0: 1,
+    1: 25,
+    2: 97,
+    3: 337,
+    4: 776,
+    5: 1408,
+    6: 1881,
+    7: 1995,
+    8: 1525,
+    9: 1035,
+    10: 559,
+    11: 227,
+    12: 98,
+    13: 28,
+    14: 6,
+    15: 1,
+    17: 1,
 }
 
 # The full frequency dictionary for prime-starting intervals of length 100
 # with starting primes between 2 and 3 million, as printed in the exposition.
 PRIME_START_2_3_MILLION = {
-    0: 12, 1: 155, 2: 799, 3: 2584, 4: 6063, 5: 10259, 6: 13359, 7: 12896,
-    8: 10312, 9: 6468, 10: 3175, 11: 1283, 12: 396, 13: 97, 14: 15, 15: 5,
-    16: 2, 17: 3,
+    0: 12,
+    1: 155,
+    2: 799,
+    3: 2584,
+    4: 6063,
+    5: 10259,
+    6: 13359,
+    7: 12896,
+    8: 10312,
+    9: 6468,
+    10: 3175,
+    11: 1283,
+    12: 396,
+    13: 97,
+    14: 15,
+    15: 5,
+    16: 2,
+    17: 3,
 }
 
 

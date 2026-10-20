@@ -97,9 +97,7 @@ def extract(meta_dictionary: Dataset, newC: list[int], option: str = "filter") -
     for c in C:
         output["data"][c] = {}
         for m in meta_dictionary["data"][c].keys():
-            output["data"][c][m] = (
-                meta_dictionary["data"][c][m] - meta_dictionary["data"][A][m]
-            )
+            output["data"][c][m] = meta_dictionary["data"][c][m] - meta_dictionary["data"][A][m]
     trimmed_data = zeros(output["data"])
     output["data"] = trimmed_data
     output["header"]["contents"].append("data")
@@ -177,8 +175,7 @@ def unpartition(meta_dictionary: Dataset) -> Dataset | None:
         unpartitioned_data[C[k]] = {}
         for m in meta_dictionary["partition"][C[k]].keys():
             unpartitioned_data[C[k]][m] = (
-                meta_dictionary["partition"][C[k]][m]
-                + unpartitioned_data[C[k - 1]][m]
+                meta_dictionary["partition"][C[k]][m] + unpartitioned_data[C[k - 1]][m]
             )
     meta_dictionary["data"] = {}
     for c in C:

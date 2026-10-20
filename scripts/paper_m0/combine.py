@@ -46,8 +46,20 @@ for N, H, kappa in cases:
     summary_parts.append(summ)
 pd.concat(long_parts).to_csv(OUT / "per_bin_N_H_m.csv", index=False)
 summary = pd.concat(summary_parts)
-first = ["N", "H", "kappa", "lambda", "mu", "mean", "m_T", "max_m_observed",
-         "ratio_global_E1", "ratio_global_E2", "quad_error", "quad_neval"]
+first = [
+    "N",
+    "H",
+    "kappa",
+    "lambda",
+    "mu",
+    "mean",
+    "m_T",
+    "max_m_observed",
+    "ratio_global_E1",
+    "ratio_global_E2",
+    "quad_error",
+    "quad_neval",
+]
 summary = summary[first + [c for c in summary.columns if c not in first]]
 summary.to_csv(OUT / "summary_by_N_H.csv", index=False)
 (OUT / "checks.txt").write_text("\n".join(checks) + "\n")

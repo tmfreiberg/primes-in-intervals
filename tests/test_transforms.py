@@ -60,10 +60,7 @@ class TestPartition:
         C = list(ds["data"].keys())
         for k in range(1, len(C)):
             for m in ds["data"][C[k]]:
-                assert (
-                    ds["partition"][C[k]][m]
-                    == ds["data"][C[k]][m] - ds["data"][C[k - 1]][m]
-                )
+                assert ds["partition"][C[k]][m] == ds["data"][C[k]][m] - ds["data"][C[k - 1]][m]
 
     def test_guards(self, overlap_dataset, capsys):
         ds = copy.deepcopy(overlap_dataset)

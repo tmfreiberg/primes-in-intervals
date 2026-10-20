@@ -102,9 +102,7 @@ def zeros(meta_dictionary: MetaDict, pad: str = "yes") -> MetaDict:
     # if pad option is 'yes' or unspecified or anything other than the string 'no'...
     padding: set[int] = set()
     for k in meta_dictionary.keys():
-        padding = padding.union(
-            [m for m in meta_dictionary[k] if meta_dictionary[k][m] != 0]
-        )
+        padding = padding.union([m for m in meta_dictionary[k] if meta_dictionary[k][m] != 0])
     padding_list = list(padding)
     padding_list.sort()
     for k in meta_dictionary.keys():

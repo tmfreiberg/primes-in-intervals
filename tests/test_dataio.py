@@ -56,9 +56,7 @@ class TestSaveAndRetrieve:
         ds = _small("disjoint")
         pii.save(ds, db_path=db)
         conn = sqlite3.connect(db)
-        row = conn.execute(
-            "SELECT * FROM disjoint_raw ORDER BY upper_bound LIMIT 1"
-        ).fetchone()
+        row = conn.execute("SELECT * FROM disjoint_raw ORDER BY upper_bound LIMIT 1").fetchone()
         conn.close()
         C = list(ds["data"].keys())
         assert row[:3] == (C[0], C[1], 25)
@@ -75,10 +73,7 @@ class TestMissingTables:
     def test_retrieve_message(self, tmp_path, capsys):
         db = tmp_path / "empty"
         assert pii.retrieve(25, "overlap", db_path=db) is None
-        assert (
-            capsys.readouterr().out
-            == "Database contains no table for overlapping intervals.\n"
-        )
+        assert capsys.readouterr().out == "Database contains no table for overlapping intervals.\n"
 
     def test_show_table_messages(self, tmp_path, capsys):
         db = tmp_path / "empty"
@@ -148,6 +143,7 @@ class TestPathResolution:
         pii.save(_small("overlap"))
         assert via_set.exists()
         assert not via_env.exists()
+
 
 class TestConflictsWidthAndProvenance:
     def test_identical_resave_is_skipped(self, tmp_path):

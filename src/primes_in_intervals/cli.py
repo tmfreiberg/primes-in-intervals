@@ -219,9 +219,7 @@ def parse_checkpoint(text: str) -> int | tuple[int, int] | str:
     if "," in text:
         values = parse_int_list(text)
         if len(values) != 2:
-            raise argparse.ArgumentTypeError(
-                "a nested checkpoint is written as 'lower,upper'"
-            )
+            raise argparse.ArgumentTypeError("a nested checkpoint is written as 'lower,upper'")
         return (values[0], values[1])
     return parse_int(text)
 
@@ -395,9 +393,7 @@ def _load_dataset(args: argparse.Namespace, parser: argparse.ArgumentParser) -> 
             )
             return None
         if not 0 <= args.index < len(found):
-            print(
-                f"error: --index must be in 0..{len(found) - 1}", file=sys.stderr
-            )
+            print(f"error: --index must be in 0..{len(found) - 1}", file=sys.stderr)
             return None
         return found[args.index]
     return found
@@ -489,8 +485,10 @@ def _do_display(dataset: Dataset, args: argparse.Namespace) -> int:
             "disjoint": "disjoint",
             "prime_start": "left endpoint prime",
         }.get(interval_type, interval_type)
-        counts = "non-cumulative" if getattr(args, "count", "cumulative") == "partition" else (
-            "cumulative"
+        counts = (
+            "non-cumulative"
+            if getattr(args, "count", "cumulative") == "partition"
+            else ("cumulative")
         )
         print(
             f"Interval type: {word}. Lower bound: {header['lower_bound']}. "
@@ -592,9 +590,7 @@ def cmd_overlap_extension(args: argparse.Namespace) -> int:
 # --------------------------------------------------------------------------
 
 
-def _resolve_checkpoints(
-    args: argparse.Namespace, parser: argparse.ArgumentParser
-) -> list[int]:
+def _resolve_checkpoints(args: argparse.Namespace, parser: argparse.ArgumentParser) -> list[int]:
     """Build the checkpoint list from ``--range`` or ``--checkpoints``.
 
     ``--range START STOP STEP`` is inclusive of ``STOP`` (see the module
@@ -659,9 +655,7 @@ def cmd_any_intervals_cp(args: argparse.Namespace, parser: argparse.ArgumentPars
     if args.format == "json":
         import json
 
-        encoded = {
-            str(k): {str(m): v for m, v in row.items()} for k, row in data.items()
-        }
+        encoded = {str(k): {str(m): v for m, v in row.items()} for k, row in data.items()}
         print(json.dumps(encoded, indent=2))
         return 0
     import pandas as pd
@@ -770,9 +764,7 @@ def cmd_extract(args: argparse.Namespace, parser: argparse.ArgumentParser) -> in
         newC, option = list(args.narrow), "narrow"
     else:
         newC, option = list(args.filter), "filter"
-    return _transform_command(
-        args, parser, lambda ds: pii.extract(ds, newC, option=option)
-    )
+    return _transform_command(args, parser, lambda ds: pii.extract(ds, newC, option=option))
 
 
 def cmd_partition(args: argparse.Namespace, parser: argparse.ArgumentParser) -> int:
@@ -1291,8 +1283,10 @@ def cmd_cumulative_frames(args: argparse.Namespace) -> int:
         last = scored[-1]
         sc = last.scores
         lo, hi = None, None
-        print(f"final checkpoint N = {last.N}: mu = {last.predictions['mu']:.6f}, "
-              f"lambda = {last.predictions['lambda']:.6f}, empirical mean = {last.mean:.6f}")
+        print(
+            f"final checkpoint N = {last.N}: mu = {last.predictions['mu']:.6f}, "
+            f"lambda = {last.predictions['lambda']:.6f}, empirical mean = {last.mean:.6f}"
+        )
         for name in sc["central"]:
             c = sc["central"][name]
             if c is None:
@@ -1650,9 +1644,7 @@ def _add_frame_args(parser: argparse.ArgumentParser) -> None:
         help="figure size in inches (default: 22 11, as in the exposition)",
     )
     parser.add_argument("--font-size", type=int, default=22, help="global font size")
-    parser.add_argument(
-        "--plot-title", default="Primes in intervals", help="figure title"
-    )
+    parser.add_argument("--plot-title", default="Primes in intervals", help="figure title")
     parser.add_argument("--dpi", type=int, default=100, help="output resolution")
 
 
@@ -1666,9 +1658,7 @@ def build_parser() -> argparse.ArgumentParser:
             "See docs/cli.md for a full reference with examples."
         ),
     )
-    parser.add_argument(
-        "--version", action="version", version=f"%(prog)s {pii.__version__}"
-    )
+    parser.add_argument("--version", action="version", version=f"%(prog)s {pii.__version__}")
     sub = parser.add_subparsers(dest="command", required=True, metavar="COMMAND")
     parents = _build_parents()
 

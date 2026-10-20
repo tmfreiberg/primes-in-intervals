@@ -109,8 +109,7 @@ def _decode(value: Any, in_comparison: bool = False) -> Any:
     """
     if isinstance(value, dict):
         return {
-            _decode_key(k): _decode(v, in_comparison or k == "comparison")
-            for k, v in value.items()
+            _decode_key(k): _decode(v, in_comparison or k == "comparison") for k, v in value.items()
         }
     if isinstance(value, list):
         decoded = [_decode(v, in_comparison) for v in value]

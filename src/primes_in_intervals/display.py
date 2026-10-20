@@ -203,9 +203,7 @@ def display(
                         output["totals"][m] = sum([dataset[datakey][c][m] for c in C])
                     if dataset["header"]["interval_type"] == "disjoint":
                         # should be the same as summing m*totals[m] over m:
-                        output["totals"]["prime_tally"] = sum(
-                            [output[c]["prime_tally"] for c in C]
-                        )
+                        output["totals"]["prime_tally"] = sum([output[c]["prime_tally"] for c in C])
 
                 df = pd.DataFrame.from_dict(output, orient=orient)
 

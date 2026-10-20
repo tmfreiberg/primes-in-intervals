@@ -17,11 +17,7 @@ class TestAxesLimits:
         hor_axis, y_max = pii.distribution_axes_limits(analyzed_overlap)
         C = list(analyzed_overlap["distribution"].keys())
         assert hor_axis == list(analyzed_overlap["distribution"][C[-1]].keys())
-        top = max(
-            v
-            for c in C
-            for v in analyzed_overlap["distribution"][c].values()
-        )
+        top = max(v for c in C for v in analyzed_overlap["distribution"][c].values())
         assert y_max == top
 
 
