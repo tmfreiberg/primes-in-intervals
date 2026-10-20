@@ -1,0 +1,88 @@
+name: Check
+
+# The gate, on every pull request and every push to main: install from
+# uv.lock, then lint, format check, type check and tests, on the oldest and
+# a current supported Python. A second job renders the book exactly as the
+# deploy does (publish.yml), so a change that breaks the book is seen
+# before it is merged. Quarto is pinned here and in publish.yml; change
+# both together.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    name: gate (${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up uv and Python ${{ matrix.python-version }}
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install from the lock
+        run: uv sync --locked --extra dev
+
+      - name: Lint
+        run: uv run --locked ruff check src tests scripts
+
+      - name: Format
+        run: uv run --locked ruff format --check src tests scripts
+
+      - name: Type check
+        run: uv run --locked mypy src
+
+      - name: Test
+        run: uv run --locked pytest -q
+
+  book:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up uv and Python 3.12
+        uses: astral-sh/setup-uv@v10.3.0
+        with:
+          python-version: "3.12"
+
+      - name: Install from the lock
+        run: uv sync --locked --extra dev
+
+      - name: Set up Quarto
+        uses: quarto-dev/quarto-actions/setup@v2
+        with:
+          version: 1.9.38
+
+      # _freeze/ is not committed, so every code cell is executed.
+      - name: Render the book
+        run: uv run --locked quarto render
+
+      - name: Check that the render changed no tracked file
+        run: |
+          git status --short
+          test -z "$(git status --porcelain)"
+
+      - name: Keep the rendered book for review
+        uses: actions/upload-artifact@v5
+        with:
+          name: book
+          path: _book
+          retention-days: 14
