@@ -2,7 +2,7 @@
 #
 # Layout: this file and index.qmd live at the repository root (Quarto requires
 # the book's home page to be index.qmd at the project root); the remaining
-# chapters, the bibliography, and any book-specific styling live in book/.
+# chapters and the bibliography live in book/, and styles.css sits here.
 
 project:
   type: book
@@ -12,7 +12,7 @@ project:
   # book/data/primes_in_intervals_db and find nothing.
   execute-dir: project
   # Copy images/ into the rendered site, so root-relative links like
-  # ![](/images/EXP17_76_NESTplot.png) resolve in the published book.
+  # ![](/images/N_exp21_H_60.gif) resolve in the published book.
   resources:
     - images/
 
@@ -41,8 +41,8 @@ book:
     - book/worked.qmd
     - book/extensions.qmd
     - book/references.qmd
-    # Chapters are added here as they are written, for example:
-    #   - book/01-intervals.qmd
+    # Order and numbering come from this list (chapter files carry no
+    # numeric prefixes), so a new chapter is one line here.
 
 bibliography: book/references.bib
 
