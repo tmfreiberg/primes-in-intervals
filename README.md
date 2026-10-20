@@ -89,6 +89,7 @@ DOI that always resolves to the latest version:
 
 To cite the exact code behind a set of results, use the version DOI:
 
+- version 1.2.0: https://doi.org/10.5281/zenodo.23505688
 - version 1.1.0: https://doi.org/10.5281/zenodo.22982661
 - version v2023.08, the code as committed on 2023-08-05:
   https://doi.org/10.5281/zenodo.22982649 (Software Heritage:
@@ -99,10 +100,10 @@ To cite the exact code behind a set of results, use the version DOI:
   author    = {Freiberg, Tristan},
   title     = {Primes in intervals},
   publisher = {Zenodo},
-  version   = {1.1.0},
+  version   = {1.2.0},
   year      = {2026},
-  doi       = {10.5281/zenodo.22982661},
-  url       = {https://doi.org/10.5281/zenodo.22982661}
+  doi       = {10.5281/zenodo.23505688},
+  url       = {https://doi.org/10.5281/zenodo.23505688}
 }
 ```
 
