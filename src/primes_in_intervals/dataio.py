@@ -51,7 +51,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -407,7 +407,7 @@ def save(
             conn.executemany(f"INSERT OR REPLACE INTO {table} VALUES({qstring})", replace_rows)  # noqa: S608
             replaced = len(replace_rows)
         written = new_rows + (replace_rows if on_conflict == "replace" else [])
-        stamp = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        stamp = datetime.now(UTC).isoformat(timespec="seconds")
         import primes_in_intervals
 
         if written:

@@ -12,7 +12,7 @@ The computation leans on a single sliding-window pass over a prime sieve, so ove
 
 ## Installation
 
-Requires Python 3.10 or newer.
+Requires Python 3.12 or newer.
 
 ```
 git clone https://github.com/tmfreiberg/primes-in-intervals.git
