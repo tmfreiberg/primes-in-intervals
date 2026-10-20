@@ -1,0 +1,35 @@
+name: Audit
+
+# pip-audit of every locked package (runtime and development), when the
+# lock or the declared dependencies change, once a month, and by hand. A
+# finding that has no fix yet is ignored here with --ignore-vuln <ID> and a
+# comment saying why.
+
+on:
+  pull_request:
+    paths: ["uv.lock", "pyproject.toml"]
+  push:
+    branches: [main]
+    paths: ["uv.lock", "pyproject.toml"]
+  schedule:
+    - cron: "17 6 3 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10.3.0
+
+      - name: Export the locked requirements
+        run: uv export --locked --all-extras --no-emit-project --format requirements-txt -o requirements-audit.txt
+
+      - name: Audit
+        run: uvx pip-audit -r requirements-audit.txt --require-hashes --disable-pip --progress-spinner off
