@@ -180,7 +180,7 @@ either `--narrow A B` (keep the checkpoints in [A, B], re-based) or
 
 `compare` evaluates, for the checkpoint `c` of a dataset with lower bound
 `A`, the predictions for the range of starting points `(A, c]`, that is
-`M = A` and `N = c - A` in the manuscript's notation (a nested interval
+`M = A` and `N = c - A` in the paper's notation (a nested interval
 `(c0, c1]` has `M = c0`, `N = c1 - c0`): the constant-density binomial
 `Binom(H, mu/H)`, the integrated corrected prediction `F`, and the
 integrated Poisson expression `F0`, at every integer `m` up to the largest
@@ -320,7 +320,7 @@ for quick previews.
 
 ## Exposition sanity checks
 
-One-liners matching computations in the article:
+One-liners matching computations in the book:
 
 ```
 # Gauss's Nachlass: disjoint intervals of length 100 up to ten million.
@@ -333,17 +333,17 @@ pii intervals --range "exp(17)-10**4" "exp(17)+10**4" 100 -H 76 --save
 pii retrieve 76 --nest --analyze --compare --winners --display --view winners
 
 # The cumulative experiment with H = 40 up to a million, saved, tabulated,
-# drawn and animated (see the report for the larger runs).
+# drawn and animated.
 pii cumulative-run -H 40 --N-max 10**6 --save --note "demo"
 pii cumulative-frames -H 40 --out-dir output --cache output/cache_H40.json
 pii cumulative-plot -H 40 --out-dir output --cache output/cache_H40.json
 pii cumulative-animate -H 40 --cache output/cache_H40.json -o output/H40_full.gif
 pii cumulative-animate -H 40 --cache output/cache_H40.json -o output/H40_later.gif --N-min 1000
 
-# A frame like the article's, written to a file.
+# A frame like the book's, written to a file.
 pii retrieve 76 --nest --analyze --json | pii plot --from-json - -o exp17.png
 
-# Two readme reference values.
+# Two reference values from the book's Generate chapter.
 pii overlap 0 5 5
 pii prime-start "2*10**6" "3*10**6" 100 --format csv
 ```
